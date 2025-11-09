@@ -11,6 +11,7 @@ It is written in Python and uses the requests library to make the API calls. It'
 - ✅ Displays activity details (name, type, distance, date)
 - ✅ **Generates interactive maps with smooth GPS paths**
 - ✅ **Aggregate multiple activities on one map** - visualize your training patterns
+- ✅ **Year in Review** - fetch ALL activities from a specific year
 - ✅ **Configurable path smoothing** (none, light, medium, heavy, Strava-style)
 - ✅ **Auto-colored paths with legend** for multi-activity maps
 - ✅ **Customizable colors and line widths**
@@ -153,6 +154,30 @@ Each activity gets a different color automatically, with a legend showing all ac
 - 📅 Creating monthly/yearly summaries
 - 🏃 Comparing different runs/rides in the same area
 
+### Year in Review - Fetch All Activities from a Year
+
+Use the `--year` flag to fetch ALL activities from a specific year:
+
+```bash
+# List all activities from 2024
+python strava_activity.py --list --year 2024
+
+# Create a map with ALL runs from 2024
+python strava_activity.py --year 2024 --type Run --map --output 2024_runs.html
+
+# Create a map with ALL activities from 2025
+python strava_activity.py --year 2025 --map --output year_2025.html
+
+# Show only rides from 2024
+python strava_activity.py --list --year 2024 --type Ride
+```
+
+This automatically fetches ALL activities from the specified year (no need to specify `--multi`). Perfect for:
+- 🎉 Creating annual "Strava Wrapped" style visualizations
+- 📈 Analyzing your training patterns for the year
+- 🏆 Celebrating your accomplishments
+- 📊 Reviewing your entire year of activities at once
+
 ### Map Generation Options
 
 **Choose smoothing level:**
@@ -199,7 +224,8 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --list, -l            List recent activities and exit
 --type, -t TYPE       Filter by activity type (Run, Ride, Swim, Walk, Hike, etc.)
 --id ID               Fetch specific activity by ID
---count N             Number of activities to list (default: 10)
+--year, -y YEAR       Fetch ALL activities from specific year (e.g., 2024, 2025)
+--count N             Number of activities to list (default: 10, ignored with --year)
 ```
 
 **Map Generation:**
@@ -384,10 +410,10 @@ pip install -r requirements.txt
 # 4. Generate a map of your latest activity
 python strava_activity.py --map
 
-# 5. Or create an aggregated map of multiple activities
-python strava_activity.py --multi 10 --type Run
+# 5. Or create a year in review with all your 2024 activities
+python strava_activity.py --year 2024 --map --output year_2024.html
 
-# 6. Open activity_map.html in your browser!
+# 6. Open the HTML file in your browser!
 ```
 
 ## Examples
@@ -438,16 +464,31 @@ python strava_activity.py --multi 5
 python strava_activity.py --multi 20 --type Run --output runs_this_month.html
 ```
 
-### Example 10: Year in review (all activities)
+### Example 10: Year in review - All activities from 2024
 ```bash
-# Get last 100 activities (adjust based on your activity level)
-python strava_activity.py --multi 100 --output year_in_review.html
+# Fetch ALL activities from 2024 and create a map
+python strava_activity.py --year 2024 --map --output year_2024.html
 ```
 
-### Example 11: Compare routes in same area
+### Example 11: All runs from 2025
+```bash
+# Create a map with all your runs from 2025
+python strava_activity.py --year 2025 --type Run --map --output 2025_runs.html
+```
+
+### Example 12: Compare routes in same area
 ```bash
 # Get your last 10 runs to see route variations
 python strava_activity.py --multi 10 --type Run --smoothing strava --output my_running_routes.html
+```
+
+### Example 13: List all activities from a year
+```bash
+# List all activities from 2024
+python strava_activity.py --list --year 2024
+
+# List only runs from 2023
+python strava_activity.py --list --year 2023 --type Run
 ```
 
 ## Common Activity Types

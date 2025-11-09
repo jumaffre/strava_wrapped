@@ -10,6 +10,7 @@ import os
 import sys
 import requests
 import argparse
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from map_generator import MapGenerator
 
@@ -88,13 +89,15 @@ class StravaAPI:
                 print(f"Response: {e.response.text}")
             sys.exit(1)
     
-    def get_activities(self, per_page=30, activity_type=None):
+    def get_activities(self, per_page=30, activity_type=None, after=None, before=None):
         """
         Fetch activities from Strava
         
         Args:
-            per_page: Number of activities to fetch (max 200)
+            per_page: Number of activities to fetch per page (max 200)
             activity_type: Filter by activity type (e.g., 'Run', 'Ride', 'Swim')
+            after: Fetch activities after this timestamp (epoch seconds)
+            before: Fetch activities before this timestamp (epoch seconds)
         
         Returns:
             List of activities
@@ -104,53 +107,88 @@ class StravaAPI:
         
         headers = {'Authorization': f'Bearer {self.access_token}'}
         url = f"{self.BASE_URL}/athlete/activities"
-        params = {'per_page': min(per_page, 200)}
         
-        if self.debug:
-            print(f"\n[DEBUG] Fetching activities:")
-            print(f"  URL: {url}")
-            print(f"  Per page: {params['per_page']}")
-            if activity_type:
-                print(f"  Activity type filter: {activity_type}")
+        # Fetch all activities within date range by paginating
+        all_activities = []
+        page = 1
         
-        try:
-            response = requests.get(url, headers=headers, params=params)
+        while True:
+            params = {'per_page': min(per_page, 200), 'page': page}
+            
+            if after:
+                params['after'] = int(after)
+            if before:
+                params['before'] = int(before)
             
             if self.debug:
-                print(f"  Status Code: {response.status_code}")
+                print(f"\n[DEBUG] Fetching activities (page {page}):")
+                print(f"  URL: {url}")
+                print(f"  Per page: {params['per_page']}")
+                if activity_type:
+                    print(f"  Activity type filter: {activity_type}")
+                if after:
+                    print(f"  After: {datetime.fromtimestamp(after, tz=timezone.utc)}")
+                if before:
+                    print(f"  Before: {datetime.fromtimestamp(before, tz=timezone.utc)}")
             
-            if response.status_code == 401:
-                print("\n❌ ERROR: 401 Unauthorized when fetching activities")
-                print("\nThe access token might be invalid or the scope might be insufficient.")
-                print("Try re-authorizing with the correct scope:")
-                print("  scope=activity:read_all")
+            try:
+                response = requests.get(url, headers=headers, params=params)
+                
+                if self.debug:
+                    print(f"  Status Code: {response.status_code}")
+                
+                if response.status_code == 401:
+                    print("\n❌ ERROR: 401 Unauthorized when fetching activities")
+                    print("\nThe access token might be invalid or the scope might be insufficient.")
+                    print("Try re-authorizing with the correct scope:")
+                    print("  scope=activity:read_all")
+                    sys.exit(1)
+                
+                response.raise_for_status()
+                activities = response.json()
+                
+                if not activities:
+                    break
+                
+                all_activities.extend(activities)
+                
+                # If we got fewer than requested, we've reached the end
+                if len(activities) < params['per_page']:
+                    break
+                
+                # If we're not using date filters and got the requested amount, stop
+                if not (after or before) and len(all_activities) >= per_page:
+                    all_activities = all_activities[:per_page]
+                    break
+                
+                page += 1
+                
+            except requests.exceptions.RequestException as e:
+                print(f"❌ Error fetching activities: {e}")
+                if hasattr(e, 'response') and e.response is not None:
+                    print(f"Response: {e.response.text}")
                 sys.exit(1)
-            
-            response.raise_for_status()
-            activities = response.json()
-            
-            # Filter by activity type if specified
-            if activity_type:
-                activities = [a for a in activities if a.get('type', '').lower() == activity_type.lower()]
-            
-            return activities
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Error fetching activities: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                print(f"Response: {e.response.text}")
-            sys.exit(1)
+        
+        # Filter by activity type if specified
+        if activity_type:
+            all_activities = [a for a in all_activities if a.get('type', '').lower() == activity_type.lower()]
+        
+        return all_activities
     
-    def get_latest_activity(self, activity_type=None):
+    def get_latest_activity(self, activity_type=None, after=None, before=None):
         """
         Fetch the latest activity from Strava
         
         Args:
             activity_type: Filter by activity type (e.g., 'Run', 'Ride', 'Swim')
+            after: Fetch activities after this timestamp (epoch seconds)
+            before: Fetch activities before this timestamp (epoch seconds)
         
         Returns:
             Activity dict or None
         """
-        activities = self.get_activities(per_page=30, activity_type=activity_type)
+        activities = self.get_activities(per_page=30, activity_type=activity_type, 
+                                        after=after, before=before)
         
         if not activities:
             if activity_type:
@@ -211,23 +249,48 @@ class StravaAPI:
             sys.exit(1)
 
 
-def list_activities(strava, activity_type=None, count=10):
+def get_year_timestamps(year):
+    """
+    Get start and end timestamps for a given year
+    
+    Args:
+        year: Year (e.g., 2024, 2025)
+    
+    Returns:
+        Tuple of (start_timestamp, end_timestamp) in epoch seconds
+    """
+    start_date = datetime(year, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    
+    return int(start_date.timestamp()), int(end_date.timestamp())
+
+
+def list_activities(strava, activity_type=None, count=10, year=None):
     """
     List recent activities
     
     Args:
         strava: StravaAPI instance
         activity_type: Filter by activity type
-        count: Number of activities to list
+        count: Number of activities to list (ignored if year is specified)
+        year: Filter by year
     """
-    activities = strava.get_activities(per_page=count, activity_type=activity_type)
+    if year:
+        after, before = get_year_timestamps(year)
+        activities = strava.get_activities(per_page=200, activity_type=activity_type, 
+                                          after=after, before=before)
+    else:
+        activities = strava.get_activities(per_page=count, activity_type=activity_type)
     
     if not activities:
         print("No activities found.")
         return
     
     print(f"\n{'='*60}")
-    print(f"Your Recent Activities")
+    if year:
+        print(f"Your Activities from {year}")
+    else:
+        print(f"Your Recent Activities")
     if activity_type:
         print(f"Filtered by type: {activity_type}")
     print(f"{'='*60}\n")
@@ -314,10 +377,12 @@ def main():
                                help='Filter by activity type (e.g., Run, Ride, Swim, Walk, Hike)')
     activity_group.add_argument('--id', type=int,
                                help='Fetch specific activity by ID')
+    activity_group.add_argument('--year', '-y', type=int,
+                               help='Fetch activities from specific year (e.g., 2024, 2025)')
     activity_group.add_argument('--list', '-l', action='store_true',
                                help='List recent activities and exit')
     activity_group.add_argument('--count', type=int, default=10,
-                               help='Number of activities to list (default: 10)')
+                               help='Number of activities to list (default: 10, ignored with --year)')
     
     # Map generation options
     map_group = parser.add_argument_group('map generation')
@@ -367,21 +432,44 @@ def main():
     # Initialize Strava API client
     strava = StravaAPI(client_id, client_secret, refresh_token, debug=args.debug)
     
+    # Calculate year timestamps if year filter is specified
+    after_ts = None
+    before_ts = None
+    if args.year:
+        after_ts, before_ts = get_year_timestamps(args.year)
+    
     # Handle --list option
     if args.list:
-        list_activities(strava, activity_type=args.type, count=args.count)
+        list_activities(strava, activity_type=args.type, count=args.count, year=args.year)
         return
     
-    # Handle --multi option (aggregate multiple activities)
-    if args.multi:
-        # Fetch multiple activities
-        count = args.multi
-        if args.type:
-            print(f"Fetching last {count} {args.type} activities...")
+    # Handle --multi option or --year without specific count (aggregate multiple activities)
+    if args.multi or (args.year and (args.map or True)):
+        # Determine if we're fetching all activities from a year or a specific count
+        if args.year:
+            # When year is specified, fetch ALL activities from that year
+            count = 200  # Max per page, will paginate
+            if args.type:
+                print(f"Fetching all {args.type} activities from {args.year}...")
+            else:
+                print(f"Fetching all activities from {args.year}...")
+        elif args.multi:
+            # When --multi is specified without --year, fetch last N
+            count = args.multi
+            if args.type:
+                print(f"Fetching last {count} {args.type} activities...")
+            else:
+                print(f"Fetching last {count} activities...")
         else:
-            print(f"Fetching last {count} activities...")
+            # Default behavior if neither --multi nor --year
+            if not args.map:
+                # Not in map mode, just fetch latest
+                count = 1
+            else:
+                count = 10
         
-        activities = strava.get_activities(per_page=count, activity_type=args.type)
+        activities = strava.get_activities(per_page=count, activity_type=args.type,
+                                          after=after_ts, before=before_ts)
         
         if not activities:
             print("No activities found.")
@@ -436,6 +524,8 @@ def main():
         print(f"\n✓ Multi-activity map saved!")
         print(f"  Open {args.output} in your browser to view")
         print(f"  {len(activities_data)} activities displayed")
+        if args.year:
+            print(f"  Showing all activities from {args.year}")
         return
     
     # Single activity mode
@@ -445,12 +535,19 @@ def main():
         print(f"Fetching activity {args.id}...")
         activity = strava.get_activity_by_id(args.id)
     else:
-        # Fetch latest activity (optionally filtered by type)
-        if args.type:
-            print(f"Fetching latest {args.type} activity...")
+        # Fetch latest activity (optionally filtered by type and year)
+        if args.year:
+            if args.type:
+                print(f"Fetching latest {args.type} activity from {args.year}...")
+            else:
+                print(f"Fetching latest activity from {args.year}...")
         else:
-            print("Fetching latest activity...")
-        activity = strava.get_latest_activity(activity_type=args.type)
+            if args.type:
+                print(f"Fetching latest {args.type} activity...")
+            else:
+                print("Fetching latest activity...")
+        activity = strava.get_latest_activity(activity_type=args.type, 
+                                             after=after_ts, before=before_ts)
     
     if not activity:
         return
