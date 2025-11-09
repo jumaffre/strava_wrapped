@@ -66,8 +66,9 @@ class PathSmoother:
         
         Args:
             coordinates: List of [lat, lng] pairs
-            smoothing_factor: Smoothing factor (None = no smoothing, higher = smoother)
-                             Recommended range: 0 to len(coordinates)
+            smoothing_factor: Smoothing factor (0 = interpolation only, higher = smoother)
+                             Recommended range: 0 to len(coordinates) * 0.01
+                             Use 0 for minimal smoothing with natural curves
             num_points: Number of output points (None = same as input)
         
         Returns:
@@ -81,9 +82,10 @@ class PathSmoother:
         # Create parameter t from 0 to 1
         t = np.linspace(0, 1, len(coords_array))
         
-        # Default smoothing factor
+        # Default smoothing factor - very light smoothing
+        # 0 means pure interpolation (smooth curve through all points)
         if smoothing_factor is None:
-            smoothing_factor = len(coordinates) * 0.1
+            smoothing_factor = 0
         
         # Fit splines for lat and lng
         try:
@@ -112,7 +114,7 @@ class MapGenerator:
         'light': {'method': 'gaussian', 'sigma': 0.8},
         'medium': {'method': 'gaussian', 'sigma': 2.0},
         'heavy': {'method': 'gaussian', 'sigma': 4.0},
-        'strava': {'method': 'spline', 'smoothing_factor': None}
+        'strava': {'method': 'spline', 'smoothing_factor': 0}  # Interpolation with natural curves
     }
     
     def __init__(self, coordinates, activity_name="Activity"):

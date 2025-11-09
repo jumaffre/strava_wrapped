@@ -210,16 +210,16 @@ The GPS data from Strava can be noisy due to GPS inaccuracies. This tool provide
 
 ### Smoothing Levels
 
-- **None**: Raw GPS data, no smoothing
+- **None**: Raw GPS data, no smoothing (straight lines between points)
 - **Light** (σ=0.8): Minimal smoothing, preserves most details
 - **Medium** (σ=2.0): Balanced smoothing, recommended for most activities
 - **Heavy** (σ=4.0): Aggressive smoothing, best for very noisy GPS data
-- **Strava-style**: Uses spline interpolation similar to Strava's map rendering
+- **Strava-style**: Uses cubic spline interpolation to create smooth curves through all GPS points (no data removal, just smooth connections)
 
 ### How It Works
 
-1. **Gaussian Smoothing**: Applies a Gaussian filter to smooth out GPS noise while preserving the general path shape
-2. **Spline Smoothing**: Fits a smooth cubic spline through the GPS points for a natural-looking curve
+1. **Gaussian Smoothing**: Applies a Gaussian filter to smooth out GPS noise while preserving the general path shape. This actually averages nearby points to reduce noise.
+2. **Spline Smoothing**: Fits a smooth cubic spline through all GPS points to create natural-looking curves without removing any data. This connects the points with smooth curves instead of straight lines.
 3. **Moving Average**: Simple averaging of neighboring points (also available programmatically)
 
 ### Programmatic Usage
