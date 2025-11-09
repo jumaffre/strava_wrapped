@@ -88,21 +88,33 @@ class StravaAPI:
                 print(f"Response: {e.response.text}")
             sys.exit(1)
     
-    def get_latest_activity(self):
-        """Fetch the latest activity from Strava"""
+    def get_activities(self, per_page=30, activity_type=None):
+        """
+        Fetch activities from Strava
+        
+        Args:
+            per_page: Number of activities to fetch (max 200)
+            activity_type: Filter by activity type (e.g., 'Run', 'Ride', 'Swim')
+        
+        Returns:
+            List of activities
+        """
         if not self.access_token:
             self.get_access_token()
         
         headers = {'Authorization': f'Bearer {self.access_token}'}
         url = f"{self.BASE_URL}/athlete/activities"
+        params = {'per_page': min(per_page, 200)}
         
         if self.debug:
             print(f"\n[DEBUG] Fetching activities:")
             print(f"  URL: {url}")
-            print(f"  Access Token: {self.access_token[:10]}...")
+            print(f"  Per page: {params['per_page']}")
+            if activity_type:
+                print(f"  Activity type filter: {activity_type}")
         
         try:
-            response = requests.get(url, headers=headers, params={'per_page': 1})
+            response = requests.get(url, headers=headers, params=params)
             
             if self.debug:
                 print(f"  Status Code: {response.status_code}")
@@ -117,13 +129,63 @@ class StravaAPI:
             response.raise_for_status()
             activities = response.json()
             
-            if not activities:
-                print("No activities found.")
-                return None
+            # Filter by activity type if specified
+            if activity_type:
+                activities = [a for a in activities if a.get('type', '').lower() == activity_type.lower()]
             
-            return activities[0]
+            return activities
         except requests.exceptions.RequestException as e:
             print(f"❌ Error fetching activities: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"Response: {e.response.text}")
+            sys.exit(1)
+    
+    def get_latest_activity(self, activity_type=None):
+        """
+        Fetch the latest activity from Strava
+        
+        Args:
+            activity_type: Filter by activity type (e.g., 'Run', 'Ride', 'Swim')
+        
+        Returns:
+            Activity dict or None
+        """
+        activities = self.get_activities(per_page=30, activity_type=activity_type)
+        
+        if not activities:
+            if activity_type:
+                print(f"No activities found of type '{activity_type}'.")
+            else:
+                print("No activities found.")
+            return None
+        
+        return activities[0]
+    
+    def get_activity_by_id(self, activity_id):
+        """
+        Fetch a specific activity by ID
+        
+        Args:
+            activity_id: The Strava activity ID
+        
+        Returns:
+            Activity dict
+        """
+        if not self.access_token:
+            self.get_access_token()
+        
+        headers = {'Authorization': f'Bearer {self.access_token}'}
+        url = f"{self.BASE_URL}/activities/{activity_id}"
+        
+        if self.debug:
+            print(f"\n[DEBUG] Fetching activity {activity_id}")
+        
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Error fetching activity {activity_id}: {e}")
             if hasattr(e, 'response') and e.response is not None:
                 print(f"Response: {e.response.text}")
             sys.exit(1)
@@ -149,15 +211,50 @@ class StravaAPI:
             sys.exit(1)
 
 
+def list_activities(strava, activity_type=None, count=10):
+    """
+    List recent activities
+    
+    Args:
+        strava: StravaAPI instance
+        activity_type: Filter by activity type
+        count: Number of activities to list
+    """
+    activities = strava.get_activities(per_page=count, activity_type=activity_type)
+    
+    if not activities:
+        print("No activities found.")
+        return
+    
+    print(f"\n{'='*60}")
+    print(f"Your Recent Activities")
+    if activity_type:
+        print(f"Filtered by type: {activity_type}")
+    print(f"{'='*60}\n")
+    
+    for i, activity in enumerate(activities, 1):
+        name = activity.get('name', 'Unnamed Activity')
+        activity_id = activity.get('id')
+        activity_type_str = activity.get('type', 'Unknown')
+        distance = activity.get('distance', 0) / 1000
+        date = activity.get('start_date_local', 'Unknown date')[:10]  # Just the date
+        
+        print(f"{i}. [{activity_id}] {name}")
+        print(f"   Type: {activity_type_str} | Distance: {distance:.2f} km | Date: {date}")
+        print()
+
+
 def format_activity_info(activity):
     """Format activity information for display"""
     name = activity.get('name', 'Unnamed Activity')
+    activity_id = activity.get('id', 'Unknown')
     activity_type = activity.get('type', 'Unknown')
     distance = activity.get('distance', 0) / 1000  # Convert to km
     date = activity.get('start_date_local', 'Unknown date')
     
     print(f"\n{'='*60}")
-    print(f"Latest Activity: {name}")
+    print(f"Selected Activity: {name}")
+    print(f"ID: {activity_id}")
     print(f"Type: {activity_type}")
     print(f"Distance: {distance:.2f} km")
     print(f"Date: {date}")
@@ -203,21 +300,43 @@ def main():
     """Main function to fetch and display Strava activity GPS data"""
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description='Fetch GPS coordinates from your latest Strava activity and generate maps'
+        description='Fetch GPS coordinates from your Strava activities and generate maps',
+        epilog='Examples:\n'
+               '  %(prog)s --map --type Run\n'
+               '  %(prog)s --list --type Ride\n'
+               '  %(prog)s --id 1234567890 --map\n',
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
+    
+    # Activity selection
+    activity_group = parser.add_argument_group('activity selection')
+    activity_group.add_argument('--type', '-t', 
+                               help='Filter by activity type (e.g., Run, Ride, Swim, Walk, Hike)')
+    activity_group.add_argument('--id', type=int,
+                               help='Fetch specific activity by ID')
+    activity_group.add_argument('--list', '-l', action='store_true',
+                               help='List recent activities and exit')
+    activity_group.add_argument('--count', type=int, default=10,
+                               help='Number of activities to list (default: 10)')
+    
+    # Map generation options
+    map_group = parser.add_argument_group('map generation')
+    map_group.add_argument('--map', action='store_true', help='Generate an interactive map')
+    map_group.add_argument('--output', '-o', default='activity_map.html', 
+                          help='Output filename for the map (default: activity_map.html)')
+    map_group.add_argument('--smoothing', '-s', default='medium',
+                          choices=['none', 'light', 'medium', 'heavy', 'strava'],
+                          help='Smoothing level for the GPS path (default: medium)')
+    map_group.add_argument('--color', '-c', default='#FC4C02',
+                          help='Path color in hex format (default: #FC4C02 - Strava orange)')
+    map_group.add_argument('--width', '-w', type=int, default=3,
+                          help='Path line width in pixels (default: 3)')
+    map_group.add_argument('--compare', action='store_true',
+                          help='Generate a comparison map showing all smoothing levels')
+    
+    # Other options
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
-    parser.add_argument('--map', action='store_true', help='Generate an interactive map')
-    parser.add_argument('--output', '-o', default='activity_map.html', 
-                       help='Output filename for the map (default: activity_map.html)')
-    parser.add_argument('--smoothing', '-s', default='medium',
-                       choices=['none', 'light', 'medium', 'heavy', 'strava'],
-                       help='Smoothing level for the GPS path (default: medium)')
-    parser.add_argument('--color', '-c', default='#FC4C02',
-                       help='Path color in hex format (default: #FC4C02 - Strava orange)')
-    parser.add_argument('--width', '-w', type=int, default=3,
-                       help='Path line width in pixels (default: 3)')
-    parser.add_argument('--compare', action='store_true',
-                       help='Generate a comparison map showing all smoothing levels')
+    
     args = parser.parse_args()
     
     # Load environment variables
@@ -246,9 +365,23 @@ def main():
     # Initialize Strava API client
     strava = StravaAPI(client_id, client_secret, refresh_token, debug=args.debug)
     
-    # Get latest activity
-    print("Fetching latest activity...")
-    activity = strava.get_latest_activity()
+    # Handle --list option
+    if args.list:
+        list_activities(strava, activity_type=args.type, count=args.count)
+        return
+    
+    # Fetch activity
+    if args.id:
+        # Fetch specific activity by ID
+        print(f"Fetching activity {args.id}...")
+        activity = strava.get_activity_by_id(args.id)
+    else:
+        # Fetch latest activity (optionally filtered by type)
+        if args.type:
+            print(f"Fetching latest {args.type} activity...")
+        else:
+            print("Fetching latest activity...")
+        activity = strava.get_latest_activity(activity_type=args.type)
     
     if not activity:
         return

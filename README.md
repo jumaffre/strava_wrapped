@@ -75,10 +75,40 @@ STRAVA_REFRESH_TOKEN=your_refresh_token_here
 
 ### Basic Usage (Display GPS Coordinates)
 
-Run the script to fetch and display GPS coordinates:
+Run the script to fetch and display GPS coordinates from your latest activity:
 
 ```bash
 python strava_activity.py
+```
+
+### Activity Selection
+
+**List your recent activities:**
+```bash
+python strava_activity.py --list
+```
+
+**Filter by activity type:**
+```bash
+# List only runs
+python strava_activity.py --list --type Run
+
+# List only rides
+python strava_activity.py --list --type Ride
+
+# Fetch latest run and generate map
+python strava_activity.py --map --type Run
+```
+
+**Fetch specific activity by ID:**
+```bash
+python strava_activity.py --id 1234567890 --map
+```
+
+**List more activities:**
+```bash
+# List last 20 activities
+python strava_activity.py --list --count 20
 ```
 
 ### Generate Interactive Map
@@ -86,7 +116,14 @@ python strava_activity.py
 Generate a beautiful interactive map with smooth GPS path:
 
 ```bash
+# Latest activity
 python strava_activity.py --map
+
+# Latest run
+python strava_activity.py --map --type Run
+
+# Specific activity
+python strava_activity.py --map --id 1234567890
 ```
 
 This creates an HTML file (`activity_map.html`) that you can open in any browser or embed in a webpage.
@@ -132,6 +169,15 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 
 ### Command-Line Options
 
+**Activity Selection:**
+```
+--list, -l            List recent activities and exit
+--type, -t TYPE       Filter by activity type (Run, Ride, Swim, Walk, Hike, etc.)
+--id ID               Fetch specific activity by ID
+--count N             Number of activities to list (default: 10)
+```
+
+**Map Generation:**
 ```
 --map                 Generate an interactive map
 --output, -o FILE     Output filename (default: activity_map.html)
@@ -139,6 +185,10 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --color, -c COLOR     Path color in hex format (default: #FC4C02)
 --width, -w WIDTH     Line width in pixels (default: 3)
 --compare             Generate comparison map with all smoothing levels
+```
+
+**Other:**
+```
 --debug               Enable debug output for troubleshooting
 ```
 
@@ -313,25 +363,67 @@ python strava_activity.py --map
 
 ## Examples
 
-### Example 1: Generate a simple map
+### Example 1: List your recent activities
 ```bash
-python strava_activity.py --map
+python strava_activity.py --list
 ```
 
-### Example 2: Custom styled map
+### Example 2: List only runs
 ```bash
-python strava_activity.py --map --smoothing strava --color "#0066CC" --width 5 --output my_ride.html
+python strava_activity.py --list --type Run --count 20
 ```
 
-### Example 3: Compare smoothing algorithms
+### Example 3: Generate map of latest run
 ```bash
-python strava_activity.py --compare --output smoothing_test.html
+python strava_activity.py --map --type Run
 ```
 
-### Example 4: No smoothing (raw GPS)
+### Example 4: Generate map of specific activity
+```bash
+python strava_activity.py --map --id 1234567890
+```
+
+### Example 5: Custom styled map of latest ride
+```bash
+python strava_activity.py --map --type Ride --smoothing strava --color "#0066CC" --width 5 --output my_ride.html
+```
+
+### Example 6: Compare smoothing algorithms
+```bash
+python strava_activity.py --compare --type Run --output smoothing_test.html
+```
+
+### Example 7: No smoothing (raw GPS)
 ```bash
 python strava_activity.py --map --smoothing none --output raw_gps.html
 ```
+
+## Common Activity Types
+
+Strava supports many activity types. Here are the most common ones:
+- `Run` - Running activities
+- `Ride` - Cycling activities (road, mountain, etc.)
+- `Swim` - Swimming activities
+- `Walk` - Walking activities
+- `Hike` - Hiking activities
+- `AlpineSki` - Alpine skiing
+- `BackcountrySki` - Backcountry skiing
+- `NordicSki` - Nordic skiing
+- `Snowboard` - Snowboarding
+- `IceSkate` - Ice skating
+- `InlineSkate` - Inline skating
+- `Kayaking` - Kayaking
+- `Canoeing` - Canoeing
+- `Rowing` - Rowing
+- `StandUpPaddling` - Stand up paddling
+- `Surfing` - Surfing
+- `Windsurf` - Windsurfing
+- `Kitesurf` - Kitesurfing
+- `VirtualRide` - Virtual cycling (e.g., Zwift)
+- `VirtualRun` - Virtual running
+- `Workout` - Generic workout
+- `Yoga` - Yoga
+- `WeightTraining` - Weight training
 
 ## License
 
