@@ -322,6 +322,8 @@ def main():
     # Map generation options
     map_group = parser.add_argument_group('map generation')
     map_group.add_argument('--map', action='store_true', help='Generate an interactive map')
+    map_group.add_argument('--multi', '-m', type=int, metavar='N',
+                          help='Generate map with last N activities (combine multiple activities on one map)')
     map_group.add_argument('--output', '-o', default='activity_map.html', 
                           help='Output filename for the map (default: activity_map.html)')
     map_group.add_argument('--smoothing', '-s', default='medium',
@@ -370,6 +372,73 @@ def main():
         list_activities(strava, activity_type=args.type, count=args.count)
         return
     
+    # Handle --multi option (aggregate multiple activities)
+    if args.multi:
+        # Fetch multiple activities
+        count = args.multi
+        if args.type:
+            print(f"Fetching last {count} {args.type} activities...")
+        else:
+            print(f"Fetching last {count} activities...")
+        
+        activities = strava.get_activities(per_page=count, activity_type=args.type)
+        
+        if not activities:
+            print("No activities found.")
+            return
+        
+        print(f"Found {len(activities)} activities")
+        
+        # Fetch GPS data for each activity
+        activities_data = []
+        for i, activity in enumerate(activities, 1):
+            activity_id = activity['id']
+            activity_name = activity.get('name', 'Unnamed Activity')
+            activity_type_str = activity.get('type', 'Unknown')
+            activity_date = activity.get('start_date_local', '')[:10]  # Just date
+            
+            print(f"  [{i}/{len(activities)}] Fetching GPS for: {activity_name}")
+            
+            try:
+                streams = strava.get_activity_streams(activity_id)
+                
+                if 'latlng' in streams and streams['latlng']['data']:
+                    activities_data.append({
+                        'coordinates': streams['latlng']['data'],
+                        'name': activity_name,
+                        'type': activity_type_str,
+                        'date': activity_date
+                    })
+                else:
+                    print(f"      ⚠️  No GPS data available")
+            except Exception as e:
+                print(f"      ⚠️  Error: {e}")
+        
+        if not activities_data:
+            print("\n❌ No activities with GPS data found")
+            return
+        
+        print(f"\n✓ Successfully loaded {len(activities_data)} activities with GPS data")
+        
+        # Generate multi-activity map
+        print(f"\n{'='*60}")
+        print("Generating Multi-Activity Map")
+        print(f"{'='*60}")
+        
+        MapGenerator.create_multi_activity_map(
+            activities_data,
+            output_file=args.output,
+            smoothing=args.smoothing,
+            line_width=args.width,
+            show_markers=True
+        )
+        
+        print(f"\n✓ Multi-activity map saved!")
+        print(f"  Open {args.output} in your browser to view")
+        print(f"  {len(activities_data)} activities displayed")
+        return
+    
+    # Single activity mode
     # Fetch activity
     if args.id:
         # Fetch specific activity by ID

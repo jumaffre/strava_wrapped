@@ -6,14 +6,18 @@ It is written in Python and uses the requests library to make the API calls. It'
 
 ## Features
 
-- ✅ Fetches your latest Strava activity
-- ✅ Retrieves GPS coordinates (latitude/longitude) for the activity
+- ✅ Fetches your latest Strava activity or filter by activity type
+- ✅ Retrieves GPS coordinates (latitude/longitude) for activities
 - ✅ Displays activity details (name, type, distance, date)
 - ✅ **Generates interactive maps with smooth GPS paths**
+- ✅ **Aggregate multiple activities on one map** - visualize your training patterns
 - ✅ **Configurable path smoothing** (none, light, medium, heavy, Strava-style)
+- ✅ **Auto-colored paths with legend** for multi-activity maps
 - ✅ **Customizable colors and line widths**
 - ✅ **Embeddable HTML maps** that work in any browser
 - ✅ **Smoothing comparison tool** to visualize different algorithms
+- ✅ **Filter by activity type** (Run, Ride, Swim, etc.)
+- ✅ **Fetch specific activities by ID**
 
 ## Prerequisites
 
@@ -128,6 +132,27 @@ python strava_activity.py --map --id 1234567890
 
 This creates an HTML file (`activity_map.html`) that you can open in any browser or embed in a webpage.
 
+### Aggregate Multiple Activities on One Map
+
+Combine multiple activities on a single map to visualize your training patterns, explore routes, or create a "year in review" style map:
+
+```bash
+# Show last 5 activities on one map
+python strava_activity.py --multi 5
+
+# Show last 10 runs on one map
+python strava_activity.py --multi 10 --type Run
+
+# Show last 20 rides with custom smoothing
+python strava_activity.py --multi 20 --type Ride --smoothing strava --output my_rides.html
+```
+
+Each activity gets a different color automatically, with a legend showing all activities. Perfect for:
+- 📊 Visualizing your training routes
+- 🗺️ Exploring new areas you've covered
+- 📅 Creating monthly/yearly summaries
+- 🏃 Comparing different runs/rides in the same area
+
 ### Map Generation Options
 
 **Choose smoothing level:**
@@ -179,12 +204,13 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 
 **Map Generation:**
 ```
---map                 Generate an interactive map
+--map                 Generate an interactive map (single activity)
+--multi, -m N         Generate map with last N activities (aggregate multiple activities)
 --output, -o FILE     Output filename (default: activity_map.html)
 --smoothing, -s LEVEL Smoothing level: none, light, medium, heavy, strava (default: medium)
---color, -c COLOR     Path color in hex format (default: #FC4C02)
+--color, -c COLOR     Path color in hex format (single activity only, default: #FC4C02)
 --width, -w WIDTH     Line width in pixels (default: 3)
---compare             Generate comparison map with all smoothing levels
+--compare             Generate comparison map showing all smoothing levels
 ```
 
 **Other:**
@@ -358,7 +384,10 @@ pip install -r requirements.txt
 # 4. Generate a map of your latest activity
 python strava_activity.py --map
 
-# 5. Open activity_map.html in your browser!
+# 5. Or create an aggregated map of multiple activities
+python strava_activity.py --multi 10 --type Run
+
+# 6. Open activity_map.html in your browser!
 ```
 
 ## Examples
@@ -396,6 +425,29 @@ python strava_activity.py --compare --type Run --output smoothing_test.html
 ### Example 7: No smoothing (raw GPS)
 ```bash
 python strava_activity.py --map --smoothing none --output raw_gps.html
+```
+
+### Example 8: Aggregate last 5 activities
+```bash
+python strava_activity.py --multi 5
+```
+
+### Example 9: Create a map of all runs this month
+```bash
+# Assuming you have ~20 runs
+python strava_activity.py --multi 20 --type Run --output runs_this_month.html
+```
+
+### Example 10: Year in review (all activities)
+```bash
+# Get last 100 activities (adjust based on your activity level)
+python strava_activity.py --multi 100 --output year_in_review.html
+```
+
+### Example 11: Compare routes in same area
+```bash
+# Get your last 10 runs to see route variations
+python strava_activity.py --multi 10 --type Run --smoothing strava --output my_running_routes.html
 ```
 
 ## Common Activity Types

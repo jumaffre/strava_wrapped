@@ -322,4 +322,171 @@ class MapGenerator:
         m.save(output_file)
         print(f"Comparison map saved to: {output_file}")
         return output_file
+    
+    @staticmethod
+    def create_multi_activity_map(activities_data, output_file="multi_activity_map.html", 
+                                   smoothing='medium', line_width=3, show_markers=True):
+        """
+        Create a map with multiple activities displayed together
+        
+        Args:
+            activities_data: List of dicts with keys:
+                - 'coordinates': List of [lat, lng] pairs
+                - 'name': Activity name
+                - 'type': Activity type (optional)
+                - 'date': Activity date (optional)
+                - 'color': Line color (optional, will auto-assign if not provided)
+            output_file: Output HTML filename
+            smoothing: Smoothing preset to apply to all activities
+            line_width: Width of path lines
+            show_markers: Show start/end markers for each activity
+        
+        Returns:
+            Path to saved file
+        """
+        if not activities_data:
+            raise ValueError("No activities provided")
+        
+        # Color palette for activities (cycling through if more activities than colors)
+        color_palette = [
+            '#FC4C02',  # Strava orange
+            '#0066CC',  # Blue
+            '#00CC66',  # Green
+            '#CC0066',  # Pink
+            '#FF9900',  # Orange
+            '#9900CC',  # Purple
+            '#00CCCC',  # Cyan
+            '#CC6600',  # Brown
+            '#FF0066',  # Red-pink
+            '#0099FF',  # Light blue
+        ]
+        
+        # Calculate center point from all activities
+        all_coords = []
+        for activity in activities_data:
+            all_coords.extend(activity['coordinates'])
+        
+        center_lat = np.mean([c[0] for c in all_coords])
+        center_lng = np.mean([c[1] for c in all_coords])
+        
+        # Auto-calculate zoom based on all activities
+        lat_range = max([c[0] for c in all_coords]) - min([c[0] for c in all_coords])
+        lng_range = max([c[1] for c in all_coords]) - min([c[1] for c in all_coords])
+        max_range = max(lat_range, lng_range)
+        
+        if max_range > 1.0:
+            zoom_start = 10
+        elif max_range > 0.1:
+            zoom_start = 12
+        elif max_range > 0.01:
+            zoom_start = 14
+        else:
+            zoom_start = 15
+        
+        # Create base map
+        m = folium.Map(
+            location=[center_lat, center_lng],
+            zoom_start=zoom_start,
+            tiles='OpenStreetMap'
+        )
+        
+        # Add each activity to the map
+        legend_items = []
+        
+        for i, activity in enumerate(activities_data):
+            coordinates = activity['coordinates']
+            name = activity.get('name', f'Activity {i+1}')
+            activity_type = activity.get('type', '')
+            date = activity.get('date', '')
+            
+            # Assign color
+            if 'color' in activity:
+                color = activity['color']
+            else:
+                color = color_palette[i % len(color_palette)]
+            
+            # Apply smoothing
+            generator = MapGenerator(coordinates, name)
+            smoothed_coords = generator.smooth_path(smoothing)
+            
+            # Create popup text
+            popup_text = name
+            if activity_type:
+                popup_text += f" ({activity_type})"
+            if date:
+                popup_text += f"\n{date}"
+            
+            # Add the path
+            folium.PolyLine(
+                smoothed_coords,
+                color=color,
+                weight=line_width,
+                opacity=0.7,
+                popup=popup_text,
+                tooltip=name
+            ).add_to(m)
+            
+            # Add start marker
+            if show_markers and len(smoothed_coords) > 0:
+                folium.CircleMarker(
+                    smoothed_coords[0],
+                    radius=5,
+                    color=color,
+                    fill=True,
+                    fillColor=color,
+                    fillOpacity=0.8,
+                    popup=f"Start: {name}",
+                    tooltip=f"Start: {name}"
+                ).add_to(m)
+                
+                # Add end marker
+                if len(smoothed_coords) > 1:
+                    folium.CircleMarker(
+                        smoothed_coords[-1],
+                        radius=5,
+                        color=color,
+                        fill=True,
+                        fillColor='white',
+                        fillOpacity=0.8,
+                        weight=2,
+                        popup=f"End: {name}",
+                        tooltip=f"End: {name}"
+                    ).add_to(m)
+            
+            # Add to legend
+            legend_label = name
+            if activity_type:
+                legend_label += f" ({activity_type})"
+            if date:
+                legend_label += f" - {date}"
+            legend_items.append((color, legend_label))
+        
+        # Add legend
+        legend_html = '''
+        <div style="position: fixed; 
+                    top: 10px; right: 10px; 
+                    border:2px solid grey; 
+                    z-index:9999; 
+                    background-color:white;
+                    padding: 10px;
+                    font-size:12px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    ">
+        <p style="margin:0; margin-bottom:5px;"><strong>Activities</strong></p>
+        '''
+        
+        for color, label in legend_items:
+            # Truncate long labels
+            display_label = label if len(label) < 40 else label[:37] + '...'
+            legend_html += f'<p style="margin:0; margin-bottom:3px;"><span style="color:{color}; font-weight:bold;">━━━</span> {display_label}</p>'
+        
+        legend_html += '</div>'
+        
+        m.get_root().html.add_child(folium.Element(legend_html))
+        
+        m.save(output_file)
+        print(f"Multi-activity map saved to: {output_file}")
+        print(f"Total activities: {len(activities_data)}")
+        return output_file
 
