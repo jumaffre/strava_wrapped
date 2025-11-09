@@ -1,6 +1,10 @@
 # Environment variables
 .env
 
+# Generated maps
+*.html
+!docs/*.html
+
 # Python
 __pycache__/
 *.py[cod]

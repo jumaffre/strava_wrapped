@@ -1,15 +1,19 @@
-# Strava Activity GPS Fetcher
+# Strava Activity GPS Mapper
 
-This project uses the Strava API to get the GPS coordinates for your latest activity. 
+This project uses the Strava API to fetch GPS coordinates from your latest activity and generates beautiful, interactive maps similar to how Strava displays them.
 
 It is written in Python and uses the requests library to make the API calls. It's a simple script that can be run from the command line and uses `.env` to store the Strava API credentials securely.
 
 ## Features
 
-- Fetches your latest Strava activity
-- Retrieves GPS coordinates (latitude/longitude) for the activity
-- Displays activity details (name, type, distance, date)
-- Shows first and last 5 GPS points with full coordinate list
+- ✅ Fetches your latest Strava activity
+- ✅ Retrieves GPS coordinates (latitude/longitude) for the activity
+- ✅ Displays activity details (name, type, distance, date)
+- ✅ **Generates interactive maps with smooth GPS paths**
+- ✅ **Configurable path smoothing** (none, light, medium, heavy, Strava-style)
+- ✅ **Customizable colors and line widths**
+- ✅ **Embeddable HTML maps** that work in any browser
+- ✅ **Smoothing comparison tool** to visualize different algorithms
 
 ## Prerequisites
 
@@ -69,19 +73,73 @@ STRAVA_REFRESH_TOKEN=your_refresh_token_here
 
 ## Usage
 
-### Basic Usage
+### Basic Usage (Display GPS Coordinates)
 
-Run the script from the command line:
+Run the script to fetch and display GPS coordinates:
 
 ```bash
 python strava_activity.py
 ```
 
-Or make it executable and run directly:
+### Generate Interactive Map
+
+Generate a beautiful interactive map with smooth GPS path:
 
 ```bash
-chmod +x strava_activity.py
-./strava_activity.py
+python strava_activity.py --map
+```
+
+This creates an HTML file (`activity_map.html`) that you can open in any browser or embed in a webpage.
+
+### Map Generation Options
+
+**Choose smoothing level:**
+```bash
+# No smoothing (raw GPS data)
+python strava_activity.py --map --smoothing none
+
+# Light smoothing
+python strava_activity.py --map --smoothing light
+
+# Medium smoothing (default, good for most activities)
+python strava_activity.py --map --smoothing medium
+
+# Heavy smoothing (very smooth, good for noisy GPS)
+python strava_activity.py --map --smoothing heavy
+
+# Strava-style smoothing (spline interpolation)
+python strava_activity.py --map --smoothing strava
+```
+
+**Customize appearance:**
+```bash
+# Custom color and line width
+python strava_activity.py --map --color "#FF5733" --width 5
+
+# Save to specific file
+python strava_activity.py --map --output my_run.html
+
+# Combine options
+python strava_activity.py --map --smoothing heavy --color "#00FF00" --width 4 --output smooth_run.html
+```
+
+**Compare all smoothing methods:**
+```bash
+python strava_activity.py --compare
+```
+
+This generates a single map showing all smoothing levels overlaid, so you can see the differences.
+
+### Command-Line Options
+
+```
+--map                 Generate an interactive map
+--output, -o FILE     Output filename (default: activity_map.html)
+--smoothing, -s LEVEL Smoothing level: none, light, medium, heavy, strava (default: medium)
+--color, -c COLOR     Path color in hex format (default: #FC4C02)
+--width, -w WIDTH     Line width in pixels (default: 3)
+--compare             Generate comparison map with all smoothing levels
+--debug               Enable debug output for troubleshooting
 ```
 
 ### Troubleshooting (Debug Mode)
@@ -142,7 +200,54 @@ strava_wrapped/
 ├── .gitignore             # Git ignore rules
 ├── README.md              # This file
 ├── requirements.txt       # Python dependencies
+├── map_generator.py       # Map generation and path smoothing utilities
 └── strava_activity.py     # Main script
+```
+
+## Map Smoothing Explained
+
+The GPS data from Strava can be noisy due to GPS inaccuracies. This tool provides several smoothing algorithms:
+
+### Smoothing Levels
+
+- **None**: Raw GPS data, no smoothing
+- **Light** (σ=0.8): Minimal smoothing, preserves most details
+- **Medium** (σ=2.0): Balanced smoothing, recommended for most activities
+- **Heavy** (σ=4.0): Aggressive smoothing, best for very noisy GPS data
+- **Strava-style**: Uses spline interpolation similar to Strava's map rendering
+
+### How It Works
+
+1. **Gaussian Smoothing**: Applies a Gaussian filter to smooth out GPS noise while preserving the general path shape
+2. **Spline Smoothing**: Fits a smooth cubic spline through the GPS points for a natural-looking curve
+3. **Moving Average**: Simple averaging of neighboring points (also available programmatically)
+
+### Programmatic Usage
+
+You can also use the map generator in your own Python scripts:
+
+```python
+from map_generator import MapGenerator
+
+# Your GPS coordinates
+coordinates = [[37.7749, -122.4194], [37.7750, -122.4195], ...]
+
+# Create map generator
+generator = MapGenerator(coordinates, "My Activity")
+
+# Generate map with custom settings
+generator.save_map(
+    "my_map.html",
+    smoothing='medium',
+    line_color='#FF0000',
+    line_width=4
+)
+
+# Or use custom smoothing parameters
+generator.save_map(
+    "custom_map.html",
+    smoothing={'method': 'gaussian', 'sigma': 3.5}
+)
 ```
 
 ## Security Note
@@ -200,8 +305,32 @@ pip install -r requirements.txt
 # STRAVA_CLIENT_SECRET=...
 # STRAVA_REFRESH_TOKEN=...
 
-# 4. Run the script
-python strava_activity.py
+# 4. Generate a map of your latest activity
+python strava_activity.py --map
+
+# 5. Open activity_map.html in your browser!
+```
+
+## Examples
+
+### Example 1: Generate a simple map
+```bash
+python strava_activity.py --map
+```
+
+### Example 2: Custom styled map
+```bash
+python strava_activity.py --map --smoothing strava --color "#0066CC" --width 5 --output my_ride.html
+```
+
+### Example 3: Compare smoothing algorithms
+```bash
+python strava_activity.py --compare --output smoothing_test.html
+```
+
+### Example 4: No smoothing (raw GPS)
+```bash
+python strava_activity.py --map --smoothing none --output raw_gps.html
 ```
 
 ## License

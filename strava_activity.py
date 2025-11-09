@@ -11,6 +11,7 @@ import sys
 import requests
 import argparse
 from dotenv import load_dotenv
+from map_generator import MapGenerator
 
 
 class StravaAPI:
@@ -201,8 +202,22 @@ def display_gps_coordinates(streams):
 def main():
     """Main function to fetch and display Strava activity GPS data"""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Fetch GPS coordinates from your latest Strava activity')
+    parser = argparse.ArgumentParser(
+        description='Fetch GPS coordinates from your latest Strava activity and generate maps'
+    )
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
+    parser.add_argument('--map', action='store_true', help='Generate an interactive map')
+    parser.add_argument('--output', '-o', default='activity_map.html', 
+                       help='Output filename for the map (default: activity_map.html)')
+    parser.add_argument('--smoothing', '-s', default='medium',
+                       choices=['none', 'light', 'medium', 'heavy', 'strava'],
+                       help='Smoothing level for the GPS path (default: medium)')
+    parser.add_argument('--color', '-c', default='#FC4C02',
+                       help='Path color in hex format (default: #FC4C02 - Strava orange)')
+    parser.add_argument('--width', '-w', type=int, default=3,
+                       help='Path line width in pixels (default: 3)')
+    parser.add_argument('--compare', action='store_true',
+                       help='Generate a comparison map showing all smoothing levels')
     args = parser.parse_args()
     
     # Load environment variables
@@ -248,6 +263,48 @@ def main():
     
     # Display GPS data
     display_gps_coordinates(streams)
+    
+    # Generate map if requested
+    if args.map or args.compare:
+        if 'latlng' not in streams or not streams['latlng']['data']:
+            print("\n⚠️  Cannot generate map: No GPS data available")
+            return
+        
+        coordinates = streams['latlng']['data']
+        activity_name = activity.get('name', 'Activity')
+        
+        print(f"\n{'='*60}")
+        print("Generating Map")
+        print(f"{'='*60}")
+        
+        if args.compare:
+            # Generate comparison map
+            print("Creating smoothing comparison map...")
+            MapGenerator.compare_smoothing(
+                coordinates, 
+                activity_name, 
+                args.output
+            )
+            print(f"\n✓ Comparison map saved!")
+            print(f"  Open {args.output} in your browser to view")
+        else:
+            # Generate single map
+            print(f"Smoothing level: {args.smoothing}")
+            print(f"Path color: {args.color}")
+            print(f"Line width: {args.width}px")
+            
+            generator = MapGenerator(coordinates, activity_name)
+            generator.save_map(
+                args.output,
+                smoothing=args.smoothing,
+                line_color=args.color,
+                line_width=args.width
+            )
+            
+            print(f"\n✓ Map saved!")
+            print(f"  Open {args.output} in your browser to view")
+            print(f"\n💡 Tip: Try different smoothing levels with --smoothing")
+            print(f"   Options: none, light, medium, heavy, strava")
 
 
 if __name__ == "__main__":
