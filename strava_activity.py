@@ -13,6 +13,7 @@ import argparse
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from map_generator import MapGenerator
+from location_utils import LocationUtils
 
 
 class StravaAPI:
@@ -244,6 +245,14 @@ class StravaAPI:
             )
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                # Activity doesn't have GPS streams (indoor activity, manual entry, etc.)
+                return {}
+            else:
+                # Other HTTP errors - print and exit for single activity mode
+                print(f"Error fetching activity streams: {e}")
+                sys.exit(1)
         except requests.exceptions.RequestException as e:
             print(f"Error fetching activity streams: {e}")
             sys.exit(1)
@@ -383,6 +392,10 @@ def main():
                                help='List recent activities and exit')
     activity_group.add_argument('--count', type=int, default=10,
                                help='Number of activities to list (default: 10, ignored with --year)')
+    activity_group.add_argument('--city', type=str,
+                               help='Filter activities by location - only include activities starting within specified radius of this city (e.g., "San Francisco" or "Paris, France")')
+    activity_group.add_argument('--radius', type=float, default=10.0,
+                               help='Radius in kilometers for city-based filtering (default: 10.0). Only used with --city')
     
     # Map generation options
     map_group = parser.add_argument_group('map generation')
@@ -438,9 +451,100 @@ def main():
     if args.year:
         after_ts, before_ts = get_year_timestamps(args.year)
     
+    # Geocode city if location filter is specified
+    city_coords = None
+    if args.city:
+        print(f"Geocoding city: {args.city}...")
+        city_coords = LocationUtils.geocode_city(args.city, debug=args.debug)
+        if not city_coords:
+            print(f"❌ Error: Could not find coordinates for city '{args.city}'")
+            print("Please check the city name and try again.")
+            print("Tip: Include country name for better results (e.g., 'Paris, France')")
+            sys.exit(1)
+        
+        city_lat, city_lon = city_coords
+        print(f"✓ Found {args.city} at coordinates: {city_lat:.6f}, {city_lon:.6f}")
+        print(f"  Filtering activities within {args.radius} km radius\n")
+    
     # Handle --list option
     if args.list:
-        list_activities(strava, activity_type=args.type, count=args.count, year=args.year)
+        if city_coords and not args.id:
+            # When listing with location filter, we need to fetch activities with GPS data
+            city_lat, city_lon = city_coords
+            
+            # Fetch activities
+            if args.year:
+                activities = strava.get_activities(per_page=200, activity_type=args.type, 
+                                                  after=after_ts, before=before_ts)
+            else:
+                activities = strava.get_activities(per_page=args.count * 3, activity_type=args.type)  # Fetch more to account for filtering
+            
+            if not activities:
+                print("No activities found.")
+                return
+            
+            # Build activities_data with GPS information
+            print(f"Fetching GPS data for location filtering...")
+            activities_data = []
+            for activity in activities:
+                activity_id = activity['id']
+                try:
+                    streams = strava.get_activity_streams(activity_id)
+                    if 'latlng' in streams and streams['latlng']['data']:
+                        activities_data.append({
+                            'coordinates': streams['latlng']['data'],
+                            'name': activity.get('name', 'Unnamed Activity'),
+                            'type': activity.get('type', 'Unknown'),
+                            'date': activity.get('start_date_local', 'Unknown date')[:10],
+                            'id': activity_id,
+                            'distance': activity.get('distance', 0) / 1000
+                        })
+                except:
+                    pass
+            
+            # Apply location filter
+            activities_data = LocationUtils.filter_activities_by_location(
+                activities_data, 
+                city_lat, 
+                city_lon, 
+                args.radius,
+                debug=args.debug
+            )
+            
+            # Display filtered activities
+            print(f"\n{'='*60}")
+            if args.year:
+                print(f"Activities from {args.year} within {args.radius}km of {args.city}")
+            else:
+                print(f"Recent Activities within {args.radius}km of {args.city}")
+            if args.type:
+                print(f"Filtered by type: {args.type}")
+            print(f"{'='*60}\n")
+            
+            if not activities_data:
+                print(f"No activities found within {args.radius}km of {args.city}")
+                print(f"Tip: Try increasing the radius with --radius <km>")
+                return
+            
+            for i, activity in enumerate(activities_data[:args.count], 1):
+                name = activity.get('name', 'Unnamed Activity')
+                activity_id = activity.get('id')
+                activity_type_str = activity.get('type', 'Unknown')
+                distance = activity.get('distance', 0)
+                date = activity.get('date', 'Unknown date')
+                
+                # Calculate distance from city center
+                first_point = activity['coordinates'][0]
+                dist_from_center = LocationUtils.haversine_distance(
+                    first_point[0], first_point[1], city_lat, city_lon
+                )
+                
+                print(f"{i}. [{activity_id}] {name}")
+                print(f"   Type: {activity_type_str} | Distance: {distance:.2f} km | Date: {date}")
+                print(f"   Started {dist_from_center:.2f} km from {args.city}")
+                print()
+        else:
+            list_activities(strava, activity_type=args.type, count=args.count, year=args.year)
         return
     
     # Handle --multi option or --year without specific count (aggregate multiple activities)
@@ -508,6 +612,32 @@ def main():
         
         print(f"\n✓ Successfully loaded {len(activities_data)} activities with GPS data")
         
+        # Apply location filter if specified
+        if city_coords:
+            city_lat, city_lon = city_coords
+            original_count = len(activities_data)
+            
+            if args.debug:
+                print(f"\n[DEBUG] Applying location filter:")
+                print(f"[DEBUG] Center: {city_lat:.6f}, {city_lon:.6f}")
+                print(f"[DEBUG] Radius: {args.radius} km\n")
+            
+            activities_data = LocationUtils.filter_activities_by_location(
+                activities_data, 
+                city_lat, 
+                city_lon, 
+                args.radius,
+                debug=args.debug
+            )
+            
+            filtered_count = len(activities_data)
+            print(f"\n✓ Location filter applied: {filtered_count}/{original_count} activities within {args.radius}km of {args.city}")
+            
+            if not activities_data:
+                print(f"\n❌ No activities found within {args.radius}km of {args.city}")
+                print(f"Tip: Try increasing the radius with --radius <km>")
+                return
+        
         # Generate multi-activity map
         print(f"\n{'='*60}")
         print("Generating Multi-Activity Map")
@@ -529,6 +659,11 @@ def main():
         return
     
     # Single activity mode
+    # Warn if location filter is used in single activity mode
+    if city_coords:
+        print("⚠️  Note: Location filter (--city) is ignored in single activity mode")
+        print("   To filter activities by location, use --multi, --year, or --list\n")
+    
     # Fetch activity
     if args.id:
         # Fetch specific activity by ID

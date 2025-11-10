@@ -19,6 +19,7 @@ It is written in Python and uses the requests library to make the API calls. It'
 - ✅ **Smoothing comparison tool** to visualize different algorithms
 - ✅ **Filter by activity type** (Run, Ride, Swim, etc.)
 - ✅ **Fetch specific activities by ID**
+- ✅ **Filter by location** - only show activities starting within a specific radius of a city
 
 ## Prerequisites
 
@@ -178,6 +179,42 @@ This automatically fetches ALL activities from the specified year (no need to sp
 - 🏆 Celebrating your accomplishments
 - 📊 Reviewing your entire year of activities at once
 
+### Filter Activities by Location
+
+Use the `--city` and `--radius` flags to filter activities based on where they started. The filter checks only the **first GPS point** of each activity:
+
+```bash
+# List activities that started within 10km of San Francisco
+python strava_activity.py --list --city "San Francisco" --radius 10
+
+# Map all runs from 2024 that started within 5km of Paris
+python strava_activity.py --year 2024 --type Run --map --city "Paris, France" --radius 5
+
+# Show last 20 rides that started within 15km of London
+python strava_activity.py --multi 20 --type Ride --city "London, UK" --radius 15
+
+# List activities near a specific location with custom count
+python strava_activity.py --list --city "New York" --radius 20 --count 30
+```
+
+**How it works:**
+- Uses OpenStreetMap's geocoding service to find city coordinates
+- Calculates distance from the **first GPS point** of each activity
+- Only includes activities that started within the specified radius
+- Default radius is 10km if not specified
+
+**Tips:**
+- Include country name for better accuracy: `"Paris, France"` instead of just `"Paris"`
+- Works with any location name recognized by OpenStreetMap
+- Combine with `--type`, `--year`, and `--multi` for powerful filtering
+- Use `--debug` to see detailed distance calculations
+
+Perfect for:
+- 🗺️ Exploring activities in a specific area or city
+- 🏃 Finding all runs that started from home
+- 🚴 Mapping rides in different cities you've visited
+- 📍 Creating location-specific training maps
+
 ### Map Generation Options
 
 **Choose smoothing level:**
@@ -226,6 +263,8 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --id ID               Fetch specific activity by ID
 --year, -y YEAR       Fetch ALL activities from specific year (e.g., 2024, 2025)
 --count N             Number of activities to list (default: 10, ignored with --year)
+--city CITY           Filter by location - city name (e.g., "San Francisco" or "Paris, France")
+--radius KM           Radius in km for location filter (default: 10.0, only used with --city)
 ```
 
 **Map Generation:**
@@ -302,6 +341,7 @@ strava_wrapped/
 ├── .gitignore             # Git ignore rules
 ├── README.md              # This file
 ├── requirements.txt       # Python dependencies
+├── location_utils.py      # Location filtering and geocoding utilities
 ├── map_generator.py       # Map generation and path smoothing utilities
 └── strava_activity.py     # Main script
 ```
@@ -489,6 +529,27 @@ python strava_activity.py --list --year 2024
 
 # List only runs from 2023
 python strava_activity.py --list --year 2023 --type Run
+```
+
+### Example 14: Filter by location
+```bash
+# List activities that started within 10km of San Francisco
+python strava_activity.py --list --city "San Francisco" --radius 10
+
+# Map all runs from 2024 that started in Paris (5km radius)
+python strava_activity.py --year 2024 --type Run --map --city "Paris, France" --radius 5 --output paris_runs_2024.html
+
+# Show last 15 rides that started within 20km of home
+python strava_activity.py --multi 15 --type Ride --city "Your City" --radius 20
+```
+
+### Example 15: Combine multiple filters
+```bash
+# All runs from 2024 that started within 10km of New York
+python strava_activity.py --year 2024 --type Run --city "New York, NY" --radius 10 --map --output nyc_runs_2024.html
+
+# List recent activities near a specific location with debug info
+python strava_activity.py --list --city "London, UK" --radius 15 --count 20 --debug
 ```
 
 ## Common Activity Types
