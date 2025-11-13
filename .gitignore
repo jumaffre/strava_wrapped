@@ -37,3 +37,5 @@ wheels/
 *.swo
 *~
 
+# Generated images
+*.png

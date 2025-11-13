@@ -400,19 +400,25 @@ def main():
     # Map generation options
     map_group = parser.add_argument_group('map generation')
     map_group.add_argument('--map', action='store_true', help='Generate an interactive map')
+    map_group.add_argument('--image', action='store_true', 
+                          help='Generate a static image (PNG) instead of interactive map')
     map_group.add_argument('--multi', '-m', type=int, metavar='N',
                           help='Generate map with last N activities (combine multiple activities on one map)')
-    map_group.add_argument('--output', '-o', default='activity_map.html', 
-                          help='Output filename for the map (default: activity_map.html)')
+    map_group.add_argument('--output', '-o', default=None, 
+                          help='Output filename (default: activity_map.html for maps, activity_image.png for images)')
     map_group.add_argument('--smoothing', '-s', default='medium',
                           choices=['none', 'light', 'medium', 'heavy', 'strava'],
                           help='Smoothing level for the GPS path (default: medium)')
     map_group.add_argument('--color', '-c', default='#FC4C02',
                           help='Path color in hex format (default: #FC4C02 - Strava orange)')
     map_group.add_argument('--width', '-w', type=int, default=3,
-                          help='Path line width in pixels (default: 3)')
+                          help='Path line width in pixels (default: 3 for maps, 2 for images)')
     map_group.add_argument('--compare', action='store_true',
                           help='Generate a comparison map showing all smoothing levels')
+    map_group.add_argument('--bg-color', '--background', default='white',
+                          help='Background color for static images (default: white). Examples: white, black, #F5F5F5')
+    map_group.add_argument('--img-width', type=int, default=1000,
+                          help='Width of static image in pixels (default: 1000)')
     
     # Other options
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -638,22 +644,53 @@ def main():
                 print(f"Tip: Try increasing the radius with --radius <km>")
                 return
         
-        # Generate multi-activity map
+        # Determine output filename
+        if args.output:
+            output_file = args.output
+        else:
+            output_file = 'multi_activity_image.png' if args.image else 'activity_map.html'
+        
+        # Determine line width
+        line_width = args.width if args.width != 3 else (2 if args.image else 3)
+        
+        # Generate multi-activity map or image
         print(f"\n{'='*60}")
-        print("Generating Multi-Activity Map")
+        if args.image:
+            print("Generating Multi-Activity Image")
+        else:
+            print("Generating Multi-Activity Map")
         print(f"{'='*60}")
         
-        MapGenerator.create_multi_activity_map(
-            activities_data,
-            output_file=args.output,
-            smoothing=args.smoothing,
-            line_width=args.width,
-            show_markers=True
-        )
+        if args.image:
+            # Generate static image
+            MapGenerator.create_multi_activity_image(
+                activities_data,
+                output_file=output_file,
+                smoothing=args.smoothing,
+                line_width=line_width,
+                width_px=args.img_width,
+                background_color=args.bg_color,
+                show_markers=True
+            )
+            
+            print(f"\n✓ Multi-activity image saved!")
+            print(f"  File: {output_file}")
+            print(f"  {len(activities_data)} activities displayed")
+            print(f"  Size: {args.img_width}px wide")
+        else:
+            # Generate interactive map
+            MapGenerator.create_multi_activity_map(
+                activities_data,
+                output_file=output_file,
+                smoothing=args.smoothing,
+                line_width=line_width,
+                show_markers=True
+            )
+            
+            print(f"\n✓ Multi-activity map saved!")
+            print(f"  Open {output_file} in your browser to view")
+            print(f"  {len(activities_data)} activities displayed")
         
-        print(f"\n✓ Multi-activity map saved!")
-        print(f"  Open {args.output} in your browser to view")
-        print(f"  {len(activities_data)} activities displayed")
         if args.year:
             print(f"  Showing all activities from {args.year}")
         return
@@ -698,45 +735,96 @@ def main():
     # Display GPS data
     display_gps_coordinates(streams)
     
-    # Generate map if requested
-    if args.map or args.compare:
+    # Generate map or image if requested
+    if args.map or args.compare or args.image:
         if 'latlng' not in streams or not streams['latlng']['data']:
-            print("\n⚠️  Cannot generate map: No GPS data available")
+            print("\n⚠️  Cannot generate map/image: No GPS data available")
             return
         
         coordinates = streams['latlng']['data']
         activity_name = activity.get('name', 'Activity')
         
+        # Determine output filename
+        if args.output:
+            output_file = args.output
+        else:
+            output_file = 'activity_image.png' if args.image else 'activity_map.html'
+        
+        # Determine line width
+        line_width = args.width if args.width != 3 else (2 if args.image else 3)
+        
         print(f"\n{'='*60}")
-        print("Generating Map")
+        if args.image:
+            print("Generating Image")
+        else:
+            print("Generating Map")
         print(f"{'='*60}")
         
         if args.compare:
-            # Generate comparison map
-            print("Creating smoothing comparison map...")
-            MapGenerator.compare_smoothing(
-                coordinates, 
-                activity_name, 
-                args.output
+            # Generate comparison map (only works with HTML maps)
+            if args.image:
+                print("⚠️  Warning: --compare only works with HTML maps, not images")
+                print("   Generating single image instead...")
+                
+                generator = MapGenerator(coordinates, activity_name)
+                generator.create_image(
+                    output_file=output_file,
+                    smoothing=args.smoothing,
+                    line_color=args.color,
+                    line_width=line_width,
+                    width_px=args.img_width,
+                    background_color=args.bg_color
+                )
+                
+                print(f"\n✓ Image saved!")
+                print(f"  File: {output_file}")
+            else:
+                print("Creating smoothing comparison map...")
+                MapGenerator.compare_smoothing(
+                    coordinates, 
+                    activity_name, 
+                    output_file
+                )
+                print(f"\n✓ Comparison map saved!")
+                print(f"  Open {output_file} in your browser to view")
+        elif args.image:
+            # Generate single image
+            print(f"Smoothing level: {args.smoothing}")
+            print(f"Path color: {args.color}")
+            print(f"Line width: {line_width}px")
+            print(f"Background: {args.bg_color}")
+            print(f"Width: {args.img_width}px")
+            
+            generator = MapGenerator(coordinates, activity_name)
+            generator.create_image(
+                output_file=output_file,
+                smoothing=args.smoothing,
+                line_color=args.color,
+                line_width=line_width,
+                width_px=args.img_width,
+                background_color=args.bg_color
             )
-            print(f"\n✓ Comparison map saved!")
-            print(f"  Open {args.output} in your browser to view")
+            
+            print(f"\n✓ Image saved!")
+            print(f"  File: {output_file}")
+            print(f"\n💡 Tip: Try different backgrounds with --bg-color")
+            print(f"   Options: white, black, or any hex color (e.g., #F5F5F5)")
         else:
             # Generate single map
             print(f"Smoothing level: {args.smoothing}")
             print(f"Path color: {args.color}")
-            print(f"Line width: {args.width}px")
+            print(f"Line width: {line_width}px")
             
             generator = MapGenerator(coordinates, activity_name)
             generator.save_map(
-                args.output,
+                output_file,
                 smoothing=args.smoothing,
                 line_color=args.color,
-                line_width=args.width
+                line_width=line_width
             )
             
             print(f"\n✓ Map saved!")
-            print(f"  Open {args.output} in your browser to view")
+            print(f"  Open {output_file} in your browser to view")
             print(f"\n💡 Tip: Try different smoothing levels with --smoothing")
             print(f"   Options: none, light, medium, heavy, strava")
 

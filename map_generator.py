@@ -7,6 +7,10 @@ import folium
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 from scipy.ndimage import gaussian_filter1d
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 
 class PathSmoother:
@@ -487,6 +491,211 @@ class MapGenerator:
         
         m.save(output_file)
         print(f"Multi-activity map saved to: {output_file}")
+        print(f"Total activities: {len(activities_data)}")
+        return output_file
+    
+    def create_image(self, output_file="activity_image.png", smoothing='medium', 
+                     line_color='#FC4C02', line_width=2, width_px=1000, 
+                     background_color='white', dpi=100):
+        """
+        Create a static image of the GPS path without map background
+        
+        Args:
+            output_file: Output filename (should end in .png, .jpg, etc.)
+            smoothing: Smoothing preset
+            line_color: Color of the path line
+            line_width: Width of the path line
+            width_px: Width of the image in pixels
+            background_color: Background color ('white', 'black', or hex color)
+            dpi: DPI for the output image
+        
+        Returns:
+            Path to saved file
+        """
+        if not self.coordinates:
+            raise ValueError("No coordinates to plot")
+        
+        # Apply smoothing
+        if isinstance(smoothing, dict):
+            coords = self.smooth_path(**smoothing)
+        else:
+            coords = self.smooth_path(smoothing)
+        
+        coords_array = np.array(coords)
+        lats = coords_array[:, 0]
+        lons = coords_array[:, 1]
+        
+        # Calculate aspect ratio to maintain geographic accuracy
+        lat_range = np.max(lats) - np.min(lats)
+        lon_range = np.max(lons) - np.min(lons)
+        
+        # Adjust for latitude (longitude degrees are smaller near poles)
+        center_lat = np.mean(lats)
+        lon_scale = np.cos(np.radians(center_lat))
+        adjusted_lon_range = lon_range * lon_scale
+        
+        if adjusted_lon_range > lat_range:
+            aspect_ratio = lat_range / adjusted_lon_range
+            figsize = (width_px / dpi, (width_px * aspect_ratio) / dpi)
+        else:
+            aspect_ratio = adjusted_lon_range / lat_range
+            figsize = (width_px / dpi, (width_px / aspect_ratio) / dpi)
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        fig.patch.set_facecolor(background_color)
+        ax.set_facecolor(background_color)
+        
+        # Plot the route
+        ax.plot(lons, lats, color=line_color, linewidth=line_width, 
+               solid_capstyle='round', solid_joinstyle='round', antialiased=True)
+        
+        # Add start and end markers
+        ax.plot(lons[0], lats[0], 'o', color='green', markersize=8, 
+               zorder=10, markeredgecolor='white', markeredgewidth=1)
+        ax.plot(lons[-1], lats[-1], 'o', color='red', markersize=8, 
+               zorder=10, markeredgecolor='white', markeredgewidth=1)
+        
+        # Remove axes
+        ax.set_aspect('equal')
+        ax.axis('off')
+        
+        # Tight layout
+        plt.tight_layout(pad=0.1)
+        
+        # Save
+        plt.savefig(output_file, dpi=dpi, bbox_inches='tight', 
+                   facecolor=background_color, edgecolor='none')
+        plt.close()
+        
+        print(f"Image saved to: {output_file}")
+        return output_file
+    
+    @staticmethod
+    def create_multi_activity_image(activities_data, output_file="multi_activity_image.png",
+                                     smoothing='medium', line_width=2, width_px=1000,
+                                     background_color='white', show_markers=True, dpi=100):
+        """
+        Create a static image with multiple activities displayed together
+        
+        Args:
+            activities_data: List of dicts with keys:
+                - 'coordinates': List of [lat, lng] pairs
+                - 'name': Activity name
+                - 'type': Activity type (optional)
+                - 'date': Activity date (optional)
+                - 'color': Line color (optional, will auto-assign if not provided)
+            output_file: Output filename
+            smoothing: Smoothing preset to apply to all activities
+            line_width: Width of path lines
+            width_px: Width of the image in pixels
+            background_color: Background color
+            show_markers: Show start/end markers for each activity
+            dpi: DPI for the output image
+        
+        Returns:
+            Path to saved file
+        """
+        if not activities_data:
+            raise ValueError("No activities provided")
+        
+        # Color palette for activities
+        color_palette = [
+            '#FC4C02',  # Strava orange
+            '#0066CC',  # Blue
+            '#00CC66',  # Green
+            '#CC0066',  # Pink
+            '#FF9900',  # Orange
+            '#9900CC',  # Purple
+            '#00CCCC',  # Cyan
+            '#CC6600',  # Brown
+            '#FF0066',  # Red-pink
+            '#0099FF',  # Light blue
+        ]
+        
+        # Collect all coordinates to determine bounds
+        all_lats = []
+        all_lons = []
+        
+        processed_activities = []
+        
+        for i, activity in enumerate(activities_data):
+            coordinates = activity['coordinates']
+            name = activity.get('name', f'Activity {i+1}')
+            
+            # Assign color
+            if 'color' in activity:
+                color = activity['color']
+            else:
+                color = color_palette[i % len(color_palette)]
+            
+            # Apply smoothing
+            generator = MapGenerator(coordinates, name)
+            smoothed_coords = generator.smooth_path(smoothing)
+            coords_array = np.array(smoothed_coords)
+            
+            all_lats.extend(coords_array[:, 0])
+            all_lons.extend(coords_array[:, 1])
+            
+            processed_activities.append({
+                'coords': coords_array,
+                'color': color,
+                'name': name
+            })
+        
+        # Calculate aspect ratio
+        lat_range = np.max(all_lats) - np.min(all_lats)
+        lon_range = np.max(all_lons) - np.min(all_lons)
+        
+        center_lat = np.mean(all_lats)
+        lon_scale = np.cos(np.radians(center_lat))
+        adjusted_lon_range = lon_range * lon_scale
+        
+        if adjusted_lon_range > lat_range:
+            aspect_ratio = lat_range / adjusted_lon_range
+            figsize = (width_px / dpi, (width_px * aspect_ratio) / dpi)
+        else:
+            aspect_ratio = adjusted_lon_range / lat_range
+            figsize = (width_px / dpi, (width_px / aspect_ratio) / dpi)
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+        fig.patch.set_facecolor(background_color)
+        ax.set_facecolor(background_color)
+        
+        # Plot each activity
+        for activity in processed_activities:
+            coords = activity['coords']
+            color = activity['color']
+            
+            ax.plot(coords[:, 1], coords[:, 0], color=color, linewidth=line_width,
+                   solid_capstyle='round', solid_joinstyle='round', 
+                   antialiased=True, alpha=0.7)
+            
+            # Add markers if requested
+            if show_markers and len(coords) > 0:
+                # Start marker (filled circle)
+                ax.plot(coords[0, 1], coords[0, 0], 'o', color=color, 
+                       markersize=6, zorder=10, markeredgecolor='white', 
+                       markeredgewidth=0.5, alpha=0.8)
+                # End marker (hollow circle)
+                ax.plot(coords[-1, 1], coords[-1, 0], 'o', color=color,
+                       markersize=6, zorder=10, markerfacecolor='white',
+                       markeredgecolor=color, markeredgewidth=1.5, alpha=0.8)
+        
+        # Remove axes
+        ax.set_aspect('equal')
+        ax.axis('off')
+        
+        # Tight layout
+        plt.tight_layout(pad=0.1)
+        
+        # Save
+        plt.savefig(output_file, dpi=dpi, bbox_inches='tight',
+                   facecolor=background_color, edgecolor='none')
+        plt.close()
+        
+        print(f"Image saved to: {output_file}")
         print(f"Total activities: {len(activities_data)}")
         return output_file
 

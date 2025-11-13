@@ -10,6 +10,7 @@ It is written in Python and uses the requests library to make the API calls. It'
 - ✅ Retrieves GPS coordinates (latitude/longitude) for activities
 - ✅ Displays activity details (name, type, distance, date)
 - ✅ **Generates interactive maps with smooth GPS paths**
+- ✅ **Generate static images** (PNG) of routes without map background - perfect for posters!
 - ✅ **Aggregate multiple activities on one map** - visualize your training patterns
 - ✅ **Year in Review** - fetch ALL activities from a specific year
 - ✅ **Configurable path smoothing** (none, light, medium, heavy, Strava-style)
@@ -133,6 +134,30 @@ python strava_activity.py --map --id 1234567890
 ```
 
 This creates an HTML file (`activity_map.html`) that you can open in any browser or embed in a webpage.
+
+### Generate Static Image
+
+Create a clean, artistic static image of your route without the map background.
+
+```bash
+# Generate image of latest activity
+python strava_activity.py --image
+
+# Generate image with custom background and color
+python strava_activity.py --image --bg-color black --color "#00FF00"
+
+# Create poster-quality image (2000px wide)
+python strava_activity.py --image --img-width 2000 --output my_run.png
+
+# Year in review as a single image
+python strava_activity.py --year 2024 --type Run --image --bg-color black --img-width 1500 --output 2024_runs.png
+```
+
+Image generation options:
+- `--image` - Generate static PNG image instead of interactive map
+- `--bg-color COLOR` - Background color (white, black, or hex like #F5F5F5)
+- `--img-width PIXELS` - Width in pixels (default: 1000)
+- `--output FILE.png` - Output filename
 
 ### Aggregate Multiple Activities on One Map
 
@@ -270,12 +295,15 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 **Map Generation:**
 ```
 --map                 Generate an interactive map (single activity)
+--image               Generate a static PNG image instead of interactive map
 --multi, -m N         Generate map with last N activities (aggregate multiple activities)
---output, -o FILE     Output filename (default: activity_map.html)
+--output, -o FILE     Output filename (default: activity_map.html or activity_image.png)
 --smoothing, -s LEVEL Smoothing level: none, light, medium, heavy, strava (default: medium)
---color, -c COLOR     Path color in hex format (single activity only, default: #FC4C02)
---width, -w WIDTH     Line width in pixels (default: 3)
+--color, -c COLOR     Path color in hex format (default: #FC4C02)
+--width, -w WIDTH     Line width in pixels (default: 3 for maps, 2 for images)
 --compare             Generate comparison map showing all smoothing levels
+--bg-color COLOR      Background color for images (default: white)
+--img-width PIXELS    Width of image in pixels (default: 1000)
 ```
 
 **Other:**
@@ -550,6 +578,21 @@ python strava_activity.py --year 2024 --type Run --city "New York, NY" --radius 
 
 # List recent activities near a specific location with debug info
 python strava_activity.py --list --city "London, UK" --radius 15 --count 20 --debug
+```
+
+### Example 16: Generate static images
+```bash
+# Create image of latest run
+python strava_activity.py --image --type Run
+
+# Black background with bright path (great for posters!)
+python strava_activity.py --image --bg-color black --color "#00FF00" --output my_run.png
+
+# High resolution year in review image
+python strava_activity.py --year 2024 --type Run --image --img-width 2000 --bg-color black --output 2024_runs_poster.png
+
+# Multi-activity image with custom styling
+python strava_activity.py --multi 20 --image --bg-color "#1a1a1a" --img-width 1500 --output training_routes.png
 ```
 
 ## Common Activity Types
