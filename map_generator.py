@@ -11,6 +11,104 @@ import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from PIL import Image, ImageEnhance
+import requests
+from io import BytesIO
+
+
+class ImageProcessor:
+    """Process background images for route visualization"""
+    
+    @staticmethod
+    def download_image(url):
+        """
+        Download image from URL
+        
+        Args:
+            url: Image URL
+        
+        Returns:
+            PIL Image object or None
+        """
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            img = Image.open(BytesIO(response.content))
+            return img
+        except Exception as e:
+            print(f"⚠️  Could not download image: {e}")
+            return None
+    
+    @staticmethod
+    def process_background(img, saturation=0.3, brightness=0.7, blur_radius=0):
+        """
+        Process background image to tone down colors
+        
+        Args:
+            img: PIL Image object
+            saturation: Saturation level (0.0 to 1.0, where 0 is grayscale)
+            brightness: Brightness level (0.0 to 1.0)
+            blur_radius: Optional blur radius
+        
+        Returns:
+            Processed PIL Image
+        """
+        # Convert to RGB if needed
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Reduce saturation (tone down colors)
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(saturation)
+        
+        # Reduce brightness slightly
+        enhancer = ImageEnhance.Brightness(img)
+        img = enhancer.enhance(brightness)
+        
+        # Optional blur for softer background
+        if blur_radius > 0:
+            from PIL import ImageFilter
+            img = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+        
+        return img
+    
+    @staticmethod
+    def fit_image_to_canvas(img, canvas_width, canvas_height):
+        """
+        Fit image to canvas maintaining aspect ratio (cover mode)
+        
+        Args:
+            img: PIL Image object
+            canvas_width: Target width
+            canvas_height: Target height
+        
+        Returns:
+            Cropped/resized PIL Image
+        """
+        img_aspect = img.width / img.height
+        canvas_aspect = canvas_width / canvas_height
+        
+        if img_aspect > canvas_aspect:
+            # Image is wider - fit to height
+            new_height = canvas_height
+            new_width = int(new_height * img_aspect)
+        else:
+            # Image is taller - fit to width
+            new_width = canvas_width
+            new_height = int(new_width / img_aspect)
+        
+        # Resize
+        img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # Center crop
+        left = (new_width - canvas_width) // 2
+        top = (new_height - canvas_height) // 2
+        right = left + canvas_width
+        bottom = top + canvas_height
+        
+        img = img.crop((left, top, right, bottom))
+        
+        return img
 
 
 class PathSmoother:
@@ -496,7 +594,7 @@ class MapGenerator:
     
     def create_image(self, output_file="activity_image.png", smoothing='medium', 
                      line_color='#FC4C02', line_width=2, width_px=1000, 
-                     background_color='white', dpi=100):
+                     background_color='white', dpi=100, background_image_url=None):
         """
         Create a static image of the GPS path without map background
         
@@ -506,8 +604,9 @@ class MapGenerator:
             line_color: Color of the path line
             line_width: Width of the path line
             width_px: Width of the image in pixels
-            background_color: Background color ('white', 'black', or hex color)
+            background_color: Background color ('white', 'black', or hex color) - used if no background_image_url
             dpi: DPI for the output image
+            background_image_url: Optional URL to background photo (will be toned down)
         
         Returns:
             Path to saved file
@@ -537,24 +636,45 @@ class MapGenerator:
         if adjusted_lon_range > lat_range:
             aspect_ratio = lat_range / adjusted_lon_range
             figsize = (width_px / dpi, (width_px * aspect_ratio) / dpi)
+            height_px = int(width_px * aspect_ratio)
         else:
             aspect_ratio = adjusted_lon_range / lat_range
             figsize = (width_px / dpi, (width_px / aspect_ratio) / dpi)
+            height_px = int(width_px / aspect_ratio)
         
         # Create figure
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
-        fig.patch.set_facecolor(background_color)
-        ax.set_facecolor(background_color)
         
-        # Plot the route
+        # Handle background
+        if background_image_url:
+            # Download and process background image
+            bg_img = ImageProcessor.download_image(background_image_url)
+            if bg_img:
+                print("  Processing background image...")
+                # Process image (tone down colors)
+                bg_img = ImageProcessor.process_background(bg_img, saturation=0.3, brightness=0.7, blur_radius=2)
+                # Fit to canvas
+                bg_img = ImageProcessor.fit_image_to_canvas(bg_img, width_px, height_px)
+                # Display as background
+                ax.imshow(bg_img, aspect='auto', extent=[np.min(lons), np.max(lons), np.min(lats), np.max(lats)], zorder=0)
+                fig.patch.set_facecolor('white')
+            else:
+                # Fallback to solid color
+                fig.patch.set_facecolor(background_color)
+                ax.set_facecolor(background_color)
+        else:
+            fig.patch.set_facecolor(background_color)
+            ax.set_facecolor(background_color)
+        
+        # Plot the route (on top of background)
         ax.plot(lons, lats, color=line_color, linewidth=line_width, 
-               solid_capstyle='round', solid_joinstyle='round', antialiased=True)
+               solid_capstyle='round', solid_joinstyle='round', antialiased=True, zorder=5)
         
         # Add start and end markers
         ax.plot(lons[0], lats[0], 'o', color='green', markersize=8, 
-               zorder=10, markeredgecolor='white', markeredgewidth=1)
+               zorder=10, markeredgecolor='white', markeredgewidth=1.5)
         ax.plot(lons[-1], lats[-1], 'o', color='red', markersize=8, 
-               zorder=10, markeredgecolor='white', markeredgewidth=1)
+               zorder=10, markeredgecolor='white', markeredgewidth=1.5)
         
         # Remove axes
         ax.set_aspect('equal')
@@ -565,7 +685,7 @@ class MapGenerator:
         
         # Save
         plt.savefig(output_file, dpi=dpi, bbox_inches='tight', 
-                   facecolor=background_color, edgecolor='none')
+                   facecolor=fig.patch.get_facecolor(), edgecolor='none')
         plt.close()
         
         print(f"Image saved to: {output_file}")
@@ -574,7 +694,8 @@ class MapGenerator:
     @staticmethod
     def create_multi_activity_image(activities_data, output_file="multi_activity_image.png",
                                      smoothing='medium', line_width=2, width_px=1000,
-                                     background_color='white', show_markers=True, dpi=100):
+                                     background_color='white', show_markers=True, dpi=100,
+                                     background_image_url=None):
         """
         Create a static image with multiple activities displayed together
         
@@ -660,8 +781,28 @@ class MapGenerator:
         
         # Create figure
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
-        fig.patch.set_facecolor(background_color)
-        ax.set_facecolor(background_color)
+        
+        # Handle background
+        if background_image_url:
+            # Download and process background image
+            bg_img = ImageProcessor.download_image(background_image_url)
+            if bg_img:
+                print("  Processing background image...")
+                # Process image (tone down colors)
+                bg_img = ImageProcessor.process_background(bg_img, saturation=0.3, brightness=0.7, blur_radius=2)
+                # Fit to canvas
+                height_px = int(width_px / aspect_ratio) if adjusted_lon_range > lat_range else int(width_px * aspect_ratio)
+                bg_img = ImageProcessor.fit_image_to_canvas(bg_img, width_px, height_px)
+                # Display as background
+                ax.imshow(bg_img, aspect='auto', extent=[np.min(all_lons), np.max(all_lons), np.min(all_lats), np.max(all_lats)], zorder=0)
+                fig.patch.set_facecolor('white')
+            else:
+                # Fallback to solid color
+                fig.patch.set_facecolor(background_color)
+                ax.set_facecolor(background_color)
+        else:
+            fig.patch.set_facecolor(background_color)
+            ax.set_facecolor(background_color)
         
         # Plot each activity
         for activity in processed_activities:

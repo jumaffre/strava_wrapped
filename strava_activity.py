@@ -256,6 +256,58 @@ class StravaAPI:
         except requests.exceptions.RequestException as e:
             print(f"Error fetching activity streams: {e}")
             sys.exit(1)
+    
+    def get_activity_photos(self, activity_id):
+        """
+        Fetch photos for a specific activity
+        
+        Args:
+            activity_id: The Strava activity ID
+        
+        Returns:
+            List of photo dicts with urls and metadata
+        """
+        if not self.access_token:
+            self.get_access_token()
+        
+        headers = {'Authorization': f'Bearer {self.access_token}'}
+        url = f"{self.BASE_URL}/activities/{activity_id}/photos"
+        
+        try:
+            response = requests.get(url, headers=headers, params={'size': 2048})
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            if self.debug:
+                print(f"[DEBUG] No photos for activity {activity_id}: {e}")
+            return []
+    
+    def find_most_popular_activity(self, activities):
+        """
+        Find the activity with the most kudos
+        
+        Args:
+            activities: List of activity dicts
+        
+        Returns:
+            Activity dict with most kudos, or None
+        """
+        if not activities:
+            return None
+        
+        # Sort by kudos count (descending)
+        sorted_activities = sorted(activities, 
+                                   key=lambda a: a.get('kudos_count', 0), 
+                                   reverse=True)
+        
+        most_popular = sorted_activities[0]
+        
+        if self.debug:
+            kudos = most_popular.get('kudos_count', 0)
+            name = most_popular.get('name', 'Unnamed')
+            print(f"[DEBUG] Most popular activity: '{name}' with {kudos} kudos")
+        
+        return most_popular
 
 
 def get_year_timestamps(year):
@@ -419,6 +471,8 @@ def main():
                           help='Background color for static images (default: white). Examples: white, black, #F5F5F5')
     map_group.add_argument('--img-width', type=int, default=1000,
                           help='Width of static image in pixels (default: 1000)')
+    map_group.add_argument('--use-photo-bg', action='store_true',
+                          help='Use highlight photo from most popular activity (by kudos) as background for images')
     
     # Other options
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -503,7 +557,8 @@ def main():
                             'type': activity.get('type', 'Unknown'),
                             'date': activity.get('start_date_local', 'Unknown date')[:10],
                             'id': activity_id,
-                            'distance': activity.get('distance', 0) / 1000
+                            'distance': activity.get('distance', 0) / 1000,
+                            'kudos_count': activity.get('kudos_count', 0)
                         })
                 except:
                     pass
@@ -605,7 +660,9 @@ def main():
                         'coordinates': streams['latlng']['data'],
                         'name': activity_name,
                         'type': activity_type_str,
-                        'date': activity_date
+                        'date': activity_date,
+                        'id': activity_id,
+                        'kudos_count': activity.get('kudos_count', 0)
                     })
                 else:
                     print(f"      ⚠️  No GPS data available")
@@ -653,6 +710,33 @@ def main():
         # Determine line width
         line_width = args.width if args.width != 3 else (2 if args.image else 3)
         
+        # Get background photo if requested (uses filtered activities only!)
+        background_photo_url = None
+        if args.use_photo_bg and args.image:
+            print("\nFetching background photo from most popular filtered activity...")
+            # Use activities_data directly - it already contains only filtered activities with kudos_count
+            if activities_data:
+                most_popular = strava.find_most_popular_activity(activities_data)
+                if most_popular:
+                    photos = strava.get_activity_photos(most_popular['id'])
+                    if photos:
+                        # Get the first photo (usually the highlight)
+                        for photo in photos:
+                            if 'urls' in photo and photo['urls']:
+                                # Use the largest available size
+                                background_photo_url = photo['urls'].get('2048') or photo['urls'].get('1024') or photo['urls'].get('600')
+                                if background_photo_url:
+                                    print(f"  ✓ Using photo from '{most_popular.get('name', 'activity')}' ({most_popular.get('kudos_count', 0)} kudos)")
+                                    break
+                        if not background_photo_url:
+                            print("  ⚠️  No usable photos found in filtered activities, using solid background")
+                    else:
+                        print("  ⚠️  Most popular activity has no photos, using solid background")
+                else:
+                    print("  ⚠️  Could not determine most popular activity")
+            else:
+                print("  ⚠️  No filtered activities available for photo selection")
+        
         # Generate multi-activity map or image
         print(f"\n{'='*60}")
         if args.image:
@@ -670,7 +754,8 @@ def main():
                 line_width=line_width,
                 width_px=args.img_width,
                 background_color=args.bg_color,
-                show_markers=True
+                show_markers=True,
+                background_image_url=background_photo_url
             )
             
             print(f"\n✓ Multi-activity image saved!")
@@ -753,6 +838,25 @@ def main():
         # Determine line width
         line_width = args.width if args.width != 3 else (2 if args.image else 3)
         
+        # Get background photo if requested
+        background_photo_url = None
+        if args.use_photo_bg and args.image:
+            print("\nFetching background photo from activity...")
+            photos = strava.get_activity_photos(activity_id)
+            if photos:
+                # Get the first photo (usually the highlight)
+                for photo in photos:
+                    if 'urls' in photo and photo['urls']:
+                        # Use the largest available size
+                        background_photo_url = photo['urls'].get('2048') or photo['urls'].get('1024') or photo['urls'].get('600')
+                        if background_photo_url:
+                            print(f"  Using photo from this activity")
+                            break
+                if not background_photo_url:
+                    print("  ⚠️  No usable photos found, using solid background")
+            else:
+                print("  ⚠️  Activity has no photos, using solid background")
+        
         print(f"\n{'='*60}")
         if args.image:
             print("Generating Image")
@@ -773,7 +877,8 @@ def main():
                     line_color=args.color,
                     line_width=line_width,
                     width_px=args.img_width,
-                    background_color=args.bg_color
+                    background_color=args.bg_color,
+                    background_image_url=background_photo_url
                 )
                 
                 print(f"\n✓ Image saved!")
@@ -802,13 +907,16 @@ def main():
                 line_color=args.color,
                 line_width=line_width,
                 width_px=args.img_width,
-                background_color=args.bg_color
+                background_color=args.bg_color,
+                background_image_url=background_photo_url
             )
             
             print(f"\n✓ Image saved!")
             print(f"  File: {output_file}")
-            print(f"\n💡 Tip: Try different backgrounds with --bg-color")
-            print(f"   Options: white, black, or any hex color (e.g., #F5F5F5)")
+            if not background_photo_url:
+                print(f"\n💡 Tip: Try different backgrounds with --bg-color")
+                print(f"   Options: white, black, or any hex color (e.g., #F5F5F5)")
+                print(f"   Or use --use-photo-bg to use activity photos as background")
         else:
             # Generate single map
             print(f"Smoothing level: {args.smoothing}")

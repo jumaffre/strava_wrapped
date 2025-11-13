@@ -151,6 +151,12 @@ python strava_activity.py --image --img-width 2000 --output my_run.png
 
 # Year in review as a single image
 python strava_activity.py --year 2024 --type Run --image --bg-color black --img-width 1500 --output 2024_runs.png
+
+# Use activity photo as background (toned down)
+python strava_activity.py --image --use-photo-bg --output photo_route.png
+
+# Year review with photo background from most popular activity
+python strava_activity.py --year 2024 --image --use-photo-bg --img-width 1500 --output 2024_wrapped.png
 ```
 
 Image generation options:
@@ -158,6 +164,7 @@ Image generation options:
 - `--bg-color COLOR` - Background color (white, black, or hex like #F5F5F5)
 - `--img-width PIXELS` - Width in pixels (default: 1000)
 - `--output FILE.png` - Output filename
+- `--use-photo-bg` - Use highlight photo from most popular activity (by kudos) as background
 
 ### Aggregate Multiple Activities on One Map
 
@@ -304,6 +311,7 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --compare             Generate comparison map showing all smoothing levels
 --bg-color COLOR      Background color for images (default: white)
 --img-width PIXELS    Width of image in pixels (default: 1000)
+--use-photo-bg        Use highlight photo from most popular activity as background (images only)
 ```
 
 **Other:**
