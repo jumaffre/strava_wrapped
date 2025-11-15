@@ -475,6 +475,10 @@ def main():
                           help='Use highlight photo from most popular activity (by kudos) as background for images')
     map_group.add_argument('--square', action='store_true',
                           help='Generate square image (1:1 aspect ratio) - perfect for Instagram/social media')
+    map_group.add_argument('--marker-size', type=float, default=None,
+                          help='Size of start/end markers in points (default: 4 for single, 3 for multi)')
+    map_group.add_argument('--no-markers', action='store_true',
+                          help='Hide start/end markers on images')
     
     # Other options
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -748,6 +752,10 @@ def main():
         print(f"{'='*60}")
         
         if args.image:
+            # Determine marker settings
+            show_markers = not args.no_markers
+            marker_size = args.marker_size if args.marker_size is not None else 3
+            
             # Generate static image
             MapGenerator.create_multi_activity_image(
                 activities_data,
@@ -756,9 +764,10 @@ def main():
                 line_width=line_width,
                 width_px=args.img_width,
                 background_color=args.bg_color,
-                show_markers=True,
+                show_markers=show_markers,
                 background_image_url=background_photo_url,
-                force_square=args.square
+                force_square=args.square,
+                marker_size=marker_size
             )
             
             print(f"\n✓ Multi-activity image saved!")
@@ -876,6 +885,10 @@ def main():
                 print("⚠️  Warning: --compare only works with HTML maps, not images")
                 print("   Generating single image instead...")
                 
+                # Determine marker settings
+                show_markers = not args.no_markers
+                marker_size = args.marker_size if args.marker_size is not None else 4
+                
                 generator = MapGenerator(coordinates, activity_name)
                 generator.create_image(
                     output_file=output_file,
@@ -885,7 +898,9 @@ def main():
                     width_px=args.img_width,
                     background_color=args.bg_color,
                     background_image_url=background_photo_url,
-                    force_square=args.square
+                    force_square=args.square,
+                    show_markers=show_markers,
+                    marker_size=marker_size
                 )
                 
                 print(f"\n✓ Image saved!")
@@ -907,6 +922,10 @@ def main():
             print(f"Background: {args.bg_color}")
             print(f"Width: {args.img_width}px")
             
+            # Determine marker settings
+            show_markers = not args.no_markers
+            marker_size = args.marker_size if args.marker_size is not None else 4
+            
             generator = MapGenerator(coordinates, activity_name)
             generator.create_image(
                 output_file=output_file,
@@ -916,7 +935,9 @@ def main():
                 width_px=args.img_width,
                 background_color=args.bg_color,
                 background_image_url=background_photo_url,
-                force_square=args.square
+                force_square=args.square,
+                show_markers=show_markers,
+                marker_size=marker_size
             )
             
             print(f"\n✓ Image saved!")

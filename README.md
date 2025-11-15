@@ -163,6 +163,12 @@ python strava_activity.py --image --square --img-width 1080 --output instagram.p
 
 # Square year review
 python strava_activity.py --year 2024 --type Run --image --square --img-width 1500 --bg-color black --output 2024_square.png
+
+# Without markers (clean look)
+python strava_activity.py --image --no-markers --output clean_route.png
+
+# Custom marker size
+python strava_activity.py --image --marker-size 6 --output large_markers.png
 ```
 
 Image generation options:
@@ -172,6 +178,8 @@ Image generation options:
 - `--output FILE.png` - Output filename
 - `--use-photo-bg` - Use highlight photo from most popular activity (by kudos) as background
 - `--square` - Generate square image (1:1 aspect ratio) - perfect for Instagram/social media
+- `--marker-size SIZE` - Size of start/end markers in points (default: 4 for single, 3 for multi)
+- `--no-markers` - Hide start/end markers completely
 
 ### Aggregate Multiple Activities on One Map
 
@@ -320,6 +328,8 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --img-width PIXELS    Width of image in pixels (default: 1000)
 --use-photo-bg        Use highlight photo from most popular activity as background (images only)
 --square              Generate square image (1:1 aspect ratio) - perfect for social media
+--marker-size SIZE    Size of start/end markers in points (default: 4 for single, 3 for multi)
+--no-markers          Hide start/end markers completely
 ```
 
 **Other:**
@@ -615,6 +625,15 @@ python strava_activity.py --image --square --img-width 1080 --output instagram.p
 
 # Square year review
 python strava_activity.py --year 2024 --type Run --image --square --img-width 1500 --bg-color black --output 2024_square.png
+
+# Clean look without markers
+python strava_activity.py --year 2024 --image --no-markers --bg-color black --output clean_2024.png
+
+# Custom marker size
+python strava_activity.py --image --marker-size 6 --output large_markers.png
+
+# Tiny markers for minimal look
+python strava_activity.py --multi 20 --image --marker-size 2 --square --img-width 1080 --output minimal.png
 ```
 
 ## Common Activity Types

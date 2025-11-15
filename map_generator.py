@@ -595,7 +595,7 @@ class MapGenerator:
     def create_image(self, output_file="activity_image.png", smoothing='medium', 
                      line_color='#FC4C02', line_width=2, width_px=1000, 
                      background_color='white', dpi=100, background_image_url=None,
-                     force_square=False):
+                     force_square=False, show_markers=True, marker_size=4):
         """
         Create a static image of the GPS path without map background
         
@@ -609,6 +609,8 @@ class MapGenerator:
             dpi: DPI for the output image
             background_image_url: Optional URL to background photo (will be toned down)
             force_square: Force 1:1 aspect ratio (square image)
+            show_markers: Show start/end markers
+            marker_size: Size of markers in points (default: 4)
         
         Returns:
             Path to saved file
@@ -678,11 +680,12 @@ class MapGenerator:
         ax.plot(lons, lats, color=line_color, linewidth=line_width, 
                solid_capstyle='round', solid_joinstyle='round', antialiased=True, zorder=5)
         
-        # Add start and end markers
-        ax.plot(lons[0], lats[0], 'o', color='green', markersize=8, 
-               zorder=10, markeredgecolor='white', markeredgewidth=1.5)
-        ax.plot(lons[-1], lats[-1], 'o', color='red', markersize=8, 
-               zorder=10, markeredgecolor='white', markeredgewidth=1.5)
+        # Add start and end markers (if enabled)
+        if show_markers:
+            ax.plot(lons[0], lats[0], 'o', color='green', markersize=marker_size, 
+                   zorder=10, markeredgecolor='white', markeredgewidth=1)
+            ax.plot(lons[-1], lats[-1], 'o', color='red', markersize=marker_size, 
+                   zorder=10, markeredgecolor='white', markeredgewidth=1)
         
         # Remove axes
         ax.set_aspect('equal')
@@ -708,7 +711,7 @@ class MapGenerator:
     def create_multi_activity_image(activities_data, output_file="multi_activity_image.png",
                                      smoothing='medium', line_width=2, width_px=1000,
                                      background_color='white', show_markers=True, dpi=100,
-                                     background_image_url=None, force_square=False):
+                                     background_image_url=None, force_square=False, marker_size=3):
         """
         Create a static image with multiple activities displayed together
         
@@ -835,12 +838,12 @@ class MapGenerator:
             if show_markers and len(coords) > 0:
                 # Start marker (filled circle)
                 ax.plot(coords[0, 1], coords[0, 0], 'o', color=color, 
-                       markersize=6, zorder=10, markeredgecolor='white', 
+                       markersize=marker_size, zorder=10, markeredgecolor='white', 
                        markeredgewidth=0.5, alpha=0.8)
                 # End marker (hollow circle)
                 ax.plot(coords[-1, 1], coords[-1, 0], 'o', color=color,
-                       markersize=6, zorder=10, markerfacecolor='white',
-                       markeredgecolor=color, markeredgewidth=1.5, alpha=0.8)
+                       markersize=marker_size, zorder=10, markerfacecolor='white',
+                       markeredgecolor=color, markeredgewidth=1, alpha=0.8)
         
         # Remove axes
         ax.set_aspect('equal')
