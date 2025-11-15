@@ -476,19 +476,19 @@ def main():
     map_group.add_argument('--color', '-c', default='#FC4C02',
                           help='Path color in hex format (default: #FC4C02 - Strava orange)')
     map_group.add_argument('--width', '-w', type=int, default=3,
-                          help='Path line width in pixels (default: 3 for maps, 2 for images)')
+                          help='Path line width in pixels (default: 3 for maps, 10 for images)')
     map_group.add_argument('--compare', action='store_true',
                           help='Generate a comparison map showing all smoothing levels')
     map_group.add_argument('--bg-color', '--background', default='white',
                           help='Background color for static images (default: white). Examples: white, black, #F5F5F5')
-    map_group.add_argument('--img-width', type=int, default=1000,
-                          help='Width of static image in pixels (default: 1000)')
+    map_group.add_argument('--img-width', type=int, default=5000,
+                          help='Width of static image in pixels (default: 5000)')
     map_group.add_argument('--use-photo-bg', action='store_true',
                           help='Use highlight photo from most popular activity (by kudos) as background for images')
     map_group.add_argument('--square', action='store_true',
                           help='Generate square image (1:1 aspect ratio) - perfect for Instagram/social media')
     map_group.add_argument('--marker-size', type=float, default=None,
-                          help='Size of start/end markers in points (default: 4 for single, 3 for multi)')
+                          help='Size of start/end markers in points (default: 20 for single, 15 for multi)')
     map_group.add_argument('--no-markers', action='store_true',
                           help='Hide start/end markers on images')
     map_group.add_argument('--use-map-bg', action='store_true',
@@ -766,8 +766,8 @@ def main():
         else:
             output_file = 'multi_activity_image.png' if args.image else 'activity_map.html'
         
-        # Determine line width
-        line_width = args.width if args.width != 3 else (2 if args.image else 3)
+        # Determine line width (default: 10 for images, 3 for maps)
+        line_width = args.width if args.width != 3 else (10 if args.image else 3)
         
         # Get background photo if requested (uses filtered activities only!)
         background_photo_url = None
@@ -807,7 +807,7 @@ def main():
         if args.image:
             # Determine marker settings
             show_markers = not args.no_markers
-            marker_size = args.marker_size if args.marker_size is not None else 3
+            marker_size = args.marker_size if args.marker_size is not None else 15
             
             # Generate static image
             MapGenerator.create_multi_activity_image(
@@ -904,8 +904,8 @@ def main():
         else:
             output_file = 'activity_image.png' if args.image else 'activity_map.html'
         
-        # Determine line width
-        line_width = args.width if args.width != 3 else (2 if args.image else 3)
+        # Determine line width (default: 10 for images, 3 for maps)
+        line_width = args.width if args.width != 3 else (10 if args.image else 3)
         
         # Get background photo if requested
         background_photo_url = None
@@ -941,7 +941,7 @@ def main():
                 
                 # Determine marker settings
                 show_markers = not args.no_markers
-                marker_size = args.marker_size if args.marker_size is not None else 4
+                marker_size = args.marker_size if args.marker_size is not None else 20
                 
                 generator = MapGenerator(coordinates, activity_name)
                 generator.create_image(

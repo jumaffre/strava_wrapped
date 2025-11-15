@@ -174,12 +174,12 @@ python strava_activity.py --image --marker-size 6 --output large_markers.png
 Image generation options:
 - `--image` - Generate static PNG image instead of interactive map
 - `--bg-color COLOR` - Background color (white, black, or hex like #F5F5F5)
-- `--img-width PIXELS` - Width in pixels (default: 1000)
+- `--img-width PIXELS` - Width in pixels (default: 5000)
 - `--output FILE.png` - Output filename
 - `--use-photo-bg` - Use highlight photo from most popular activity (by kudos) as background
 - `--use-map-bg` - Use minimal OpenStreetMap as background (NO LABELS, muted colors, accurate geography)
 - `--square` - Generate square image (1:1 aspect ratio) - perfect for Instagram/social media
-- `--marker-size SIZE` - Size of start/end markers in points (default: 4 for single, 3 for multi)
+- `--marker-size SIZE` - Size of start/end markers in points (default: 20 for single, 15 for multi)
 - `--no-markers` - Hide start/end markers completely
 
 ### Aggregate Multiple Activities on One Map
@@ -367,14 +367,14 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --output, -o FILE     Output filename (default: activity_map.html or activity_image.png)
 --smoothing, -s LEVEL Smoothing level: none, light, medium, heavy, strava (default: medium)
 --color, -c COLOR     Path color in hex format (default: #FC4C02)
---width, -w WIDTH     Line width in pixels (default: 3 for maps, 2 for images)
+--width, -w WIDTH     Line width in pixels (default: 3 for maps, 10 for images)
 --compare             Generate comparison map showing all smoothing levels
 --bg-color COLOR      Background color for images (default: white)
---img-width PIXELS    Width of image in pixels (default: 1000)
+--img-width PIXELS    Width of image in pixels (default: 5000)
 --use-photo-bg        Use highlight photo from most popular activity as background (images only)
 --use-map-bg          Use minimal OpenStreetMap as background (NO LABELS, muted colors, accurate)
 --square              Generate square image (1:1 aspect ratio) - perfect for social media
---marker-size SIZE    Size of start/end markers in points (default: 4 for single, 3 for multi)
+--marker-size SIZE    Size of start/end markers in points (default: 20 for single, 15 for multi)
 --no-markers          Hide start/end markers completely
 ```
 
