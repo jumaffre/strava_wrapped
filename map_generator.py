@@ -14,6 +14,8 @@ from matplotlib.patches import Rectangle
 from PIL import Image, ImageEnhance
 import requests
 from io import BytesIO
+import math
+import time
 
 
 class ImageProcessor:
@@ -109,6 +111,238 @@ class ImageProcessor:
         img = img.crop((left, top, right, bottom))
         
         return img
+    
+    @staticmethod
+    def lat_lon_to_tile(lat, lon, zoom):
+        """
+        Convert lat/lon to tile coordinates at given zoom level
+        
+        Args:
+            lat: Latitude
+            lon: Longitude
+            zoom: Zoom level
+        
+        Returns:
+            (x_tile, y_tile) tuple
+        """
+        lat_rad = math.radians(lat)
+        n = 2.0 ** zoom
+        x_tile = int((lon + 180.0) / 360.0 * n)
+        y_tile = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
+        return (x_tile, y_tile)
+    
+    @staticmethod
+    def tile_to_lat_lon(x_tile, y_tile, zoom):
+        """
+        Convert tile coordinates to lat/lon (NW corner of tile)
+        
+        Args:
+            x_tile: X tile coordinate
+            y_tile: Y tile coordinate
+            zoom: Zoom level
+        
+        Returns:
+            (lat, lon) tuple of NW corner
+        """
+        n = 2.0 ** zoom
+        lon = x_tile / n * 360.0 - 180.0
+        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * y_tile / n)))
+        lat = math.degrees(lat_rad)
+        return (lat, lon)
+    
+    @staticmethod
+    def get_map_bounds(coordinates, padding=0.1):
+        """
+        Get bounding box for coordinates with padding
+        
+        Args:
+            coordinates: List of [lat, lon] pairs
+            padding: Padding as fraction of range (default 10%)
+        
+        Returns:
+            (min_lat, max_lat, min_lon, max_lon)
+        """
+        coords_array = np.array(coordinates)
+        min_lat = np.min(coords_array[:, 0])
+        max_lat = np.max(coords_array[:, 0])
+        min_lon = np.min(coords_array[:, 1])
+        max_lon = np.max(coords_array[:, 1])
+        
+        # Add padding
+        lat_range = max_lat - min_lat
+        lon_range = max_lon - min_lon
+        
+        min_lat -= lat_range * padding
+        max_lat += lat_range * padding
+        min_lon -= lon_range * padding
+        max_lon += lon_range * padding
+        
+        return (min_lat, max_lat, min_lon, max_lon)
+    
+    @staticmethod
+    def create_minimal_map_background(coordinates, width, height, 
+                                       saturation=0.15, brightness=1.0, contrast=0.85):
+        """
+        Create a minimal, artsy map background with NO LABELS
+        
+        Uses CartoDB Positron NoLabels (no text, just geography) heavily processed
+        
+        Args:
+            coordinates: List of [lat, lon] pairs for route bounds
+            width: Output image width in pixels
+            height: Output image height in pixels
+            saturation: Color saturation (0.0-1.0, lower = more muted)
+            brightness: Brightness adjustment (0.5-1.5, higher = brighter)
+            contrast: Contrast level (0.0-1.5, higher = more defined)
+        
+        Returns:
+            Tuple of (PIL Image, (min_lon, max_lon, min_lat, max_lat)) - image and actual tile extent
+        """
+        # Get bounding box
+        min_lat, max_lat, min_lon, max_lon = ImageProcessor.get_map_bounds(coordinates)
+        
+        # Calculate appropriate zoom level based on route size
+        lat_range = max_lat - min_lat
+        lon_range = max_lon - min_lon
+        
+        # Estimate zoom level
+        if max(lat_range, lon_range) > 1:
+            zoom = 10
+        elif max(lat_range, lon_range) > 0.5:
+            zoom = 11
+        elif max(lat_range, lon_range) > 0.1:
+            zoom = 12
+        elif max(lat_range, lon_range) > 0.05:
+            zoom = 13
+        else:
+            zoom = 14
+        
+        # Get tile coordinates for corners
+        min_tile_x, max_tile_y = ImageProcessor.lat_lon_to_tile(min_lat, min_lon, zoom)
+        max_tile_x, min_tile_y = ImageProcessor.lat_lon_to_tile(max_lat, max_lon, zoom)
+        
+        # Ensure we have at least one tile
+        if min_tile_x == max_tile_x:
+            max_tile_x += 1
+        if min_tile_y == max_tile_y:
+            max_tile_y += 1
+        
+        # Adjust tile grid to match target aspect ratio for minimal distortion
+        target_aspect = width / height
+        tiles_x = max_tile_x - min_tile_x + 1
+        tiles_y = max_tile_y - min_tile_y + 1
+        current_aspect = tiles_x / tiles_y
+        
+        # Expand tile grid to better match target aspect ratio
+        if abs(current_aspect - target_aspect) > 0.1:
+            if target_aspect > current_aspect:
+                # Need more width (more X tiles)
+                needed_x = int(tiles_y * target_aspect)
+                expand = needed_x - tiles_x
+                if expand > 0:
+                    max_tile_x += expand // 2
+                    min_tile_x -= (expand - expand // 2)
+            else:
+                # Need more height (more Y tiles)
+                needed_y = int(tiles_x / target_aspect)
+                expand = needed_y - tiles_y
+                if expand > 0:
+                    max_tile_y += expand // 2
+                    min_tile_y -= (expand - expand // 2)
+        
+        # Tile configuration
+        tile_size = 256
+        tiles_wide = max_tile_x - min_tile_x + 1
+        tiles_high = max_tile_y - min_tile_y + 1
+        
+        print(f"    Zoom: {zoom}, downloading {tiles_wide * tiles_high} tiles...")
+        
+        # Create canvas
+        map_img = Image.new('RGB', (tiles_wide * tile_size, tiles_high * tile_size), (250, 250, 250))
+        
+        # Try multiple tile providers that have NO LABELS versions
+        tile_providers = [
+            {
+                'name': 'CartoDB Positron NoLabels',
+                'url': 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
+                'subdomains': ['a', 'b', 'c', 'd']
+            },
+            {
+                'name': 'CartoDB Voyager NoLabels',
+                'url': 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png',
+                'subdomains': ['a', 'b', 'c', 'd']
+            },
+            {
+                'name': 'OSM (fallback)',
+                'url': 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                'subdomains': ['']
+            }
+        ]
+        
+        headers = {'User-Agent': 'StravaWrapped/1.0 (Strava Activity Mapper)'}
+        tiles_downloaded = 0
+        provider_used = None
+        
+        # Try each provider until one works
+        for provider in tile_providers:
+            if tiles_downloaded > 0:
+                break
+            
+            for x in range(min_tile_x, max_tile_x + 1):
+                for y in range(min_tile_y, max_tile_y + 1):
+                    # Try different subdomains
+                    for subdomain in provider['subdomains']:
+                        tile_url = provider['url'].replace('{s}', subdomain).format(z=zoom, x=x, y=y)
+                        try:
+                            response = requests.get(tile_url, headers=headers, timeout=10)
+                            if response.status_code == 200:
+                                tile = Image.open(BytesIO(response.content))
+                                paste_x = (x - min_tile_x) * tile_size
+                                paste_y = (y - min_tile_y) * tile_size
+                                map_img.paste(tile, (paste_x, paste_y))
+                                tiles_downloaded += 1
+                                provider_used = provider['name']
+                                time.sleep(0.05)  # Small delay
+                                break  # Success, move to next tile
+                        except:
+                            continue  # Try next subdomain
+        
+        print(f"    ✓ Downloaded {tiles_downloaded}/{tiles_wide * tiles_high} tiles from {provider_used}, processing...")
+        
+        if tiles_downloaded == 0:
+            raise Exception("No map tiles could be downloaded from any provider")
+        
+        # Apply CLEAN minimal processing (no blur - tiles already have no labels!)
+        # 1. Reduce saturation (make it more B&W)
+        enhancer = ImageEnhance.Color(map_img)
+        map_img = enhancer.enhance(saturation)
+        
+        # 2. Increase brightness
+        enhancer = ImageEnhance.Brightness(map_img)
+        map_img = enhancer.enhance(brightness)
+        
+        # 3. Adjust contrast
+        enhancer = ImageEnhance.Contrast(map_img)
+        map_img = enhancer.enhance(contrast)
+        
+        # 4. Resize to target dimensions with high quality
+        # Use LANCZOS for best quality to minimize any distortion
+        map_img = map_img.resize((width, height), Image.Resampling.LANCZOS)
+        
+        # Calculate the actual geographic extent of the tiles
+        # Note: tile Y increases southward, so min_tile_y is NORTH (max lat)
+        tile_nw_lat, tile_nw_lon = ImageProcessor.tile_to_lat_lon(min_tile_x, min_tile_y, zoom)
+        tile_se_lat, tile_se_lon = ImageProcessor.tile_to_lat_lon(max_tile_x + 1, max_tile_y + 1, zoom)
+        
+        # NW corner has max lat, min lon
+        # SE corner has min lat, max lon
+        actual_min_lat = tile_se_lat  # Southern edge
+        actual_max_lat = tile_nw_lat  # Northern edge
+        actual_min_lon = tile_nw_lon  # Western edge
+        actual_max_lon = tile_se_lon  # Eastern edge
+        
+        # Return both the image and the actual tile extent (lon_min, lon_max, lat_min, lat_max)
+        return (map_img, (actual_min_lon, actual_max_lon, actual_min_lat, actual_max_lat))
 
 
 class PathSmoother:
@@ -595,9 +829,10 @@ class MapGenerator:
     def create_image(self, output_file="activity_image.png", smoothing='medium', 
                      line_color='#FC4C02', line_width=2, width_px=1000, 
                      background_color='white', dpi=100, background_image_url=None,
-                     force_square=False, show_markers=True, marker_size=4):
+                     force_square=False, show_markers=True, marker_size=4,
+                     use_map_background=False):
         """
-        Create a static image of the GPS path without map background
+        Create a static image of the GPS path with optional backgrounds
         
         Args:
             output_file: Output filename (should end in .png, .jpg, etc.)
@@ -605,12 +840,13 @@ class MapGenerator:
             line_color: Color of the path line
             line_width: Width of the path line
             width_px: Width of the image in pixels
-            background_color: Background color ('white', 'black', or hex color) - used if no background_image_url
+            background_color: Background color ('white', 'black', or hex color) - used if no other background
             dpi: DPI for the output image
             background_image_url: Optional URL to background photo (will be toned down)
             force_square: Force 1:1 aspect ratio (square image)
             show_markers: Show start/end markers
             marker_size: Size of markers in points (default: 4)
+            use_map_background: Use minimal OpenStreetMap background
         
         Returns:
             Path to saved file
@@ -655,8 +891,33 @@ class MapGenerator:
         # Create figure
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
         
-        # Handle background
-        if background_image_url:
+        # Handle background (priority: map > photo > solid color)
+        if use_map_background:
+            # Create minimal map background
+            print("  Generating minimal map background...")
+            try:
+                bg_result = ImageProcessor.create_minimal_map_background(
+                    self.coordinates, width_px, height_px
+                )
+                bg_img, (tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max) = bg_result
+                
+                # Use the actual tile extent for perfect alignment
+                # matplotlib imshow extent format: [left, right, bottom, top] = [lon_min, lon_max, lat_min, lat_max]
+                ax.imshow(bg_img, 
+                         extent=[tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max], 
+                         zorder=0, interpolation='bilinear', origin='upper')
+                
+                # Set plot limits to match the tile extent
+                ax.set_xlim(tile_lon_min, tile_lon_max)
+                ax.set_ylim(tile_lat_min, tile_lat_max)
+                fig.patch.set_facecolor('white')
+                print("    ✓ Map background applied")
+            except Exception as e:
+                print(f"  ⚠️  Could not generate map background: {e}")
+                print("  Falling back to solid color")
+                fig.patch.set_facecolor(background_color)
+                ax.set_facecolor(background_color)
+        elif background_image_url:
             # Download and process background image
             bg_img = ImageProcessor.download_image(background_image_url)
             if bg_img:
@@ -687,8 +948,13 @@ class MapGenerator:
             ax.plot(lons[-1], lats[-1], 'o', color='red', markersize=marker_size, 
                    zorder=10, markeredgecolor='white', markeredgewidth=1)
         
-        # Remove axes
-        ax.set_aspect('equal')
+        # Remove axes and set aspect
+        if force_square and use_map_background:
+            # For square with map, use 'auto' to fill the square canvas
+            ax.set_aspect('auto')
+        else:
+            # Normal mode: maintain equal aspect for geographic accuracy
+            ax.set_aspect('equal')
         ax.axis('off')
         
         # Save with different options based on square requirement
@@ -711,7 +977,8 @@ class MapGenerator:
     def create_multi_activity_image(activities_data, output_file="multi_activity_image.png",
                                      smoothing='medium', line_width=2, width_px=1000,
                                      background_color='white', show_markers=True, dpi=100,
-                                     background_image_url=None, force_square=False, marker_size=3):
+                                     background_image_url=None, force_square=False, marker_size=3,
+                                     use_map_background=False):
         """
         Create a static image with multiple activities displayed together
         
@@ -803,8 +1070,43 @@ class MapGenerator:
         # Create figure
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
         
-        # Handle background
-        if background_image_url:
+        # Calculate height for background processing
+        if force_square:
+            height_px = width_px
+        else:
+            height_px = int(figsize[1] * dpi)
+        
+        # Handle background (priority: map > photo > solid color)
+        if use_map_background:
+            # Create minimal map background using all coordinates
+            print("  Generating minimal map background...")
+            try:
+                all_coords_for_map = []
+                for activity in activities_data:
+                    all_coords_for_map.extend(activity['coordinates'])
+                
+                bg_result = ImageProcessor.create_minimal_map_background(
+                    all_coords_for_map, width_px, height_px
+                )
+                bg_img, (tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max) = bg_result
+                
+                # Use the actual tile extent for perfect alignment
+                # matplotlib imshow extent format: [left, right, bottom, top] = [lon_min, lon_max, lat_min, lat_max]
+                ax.imshow(bg_img, 
+                         extent=[tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max], 
+                         zorder=0, interpolation='bilinear', origin='upper')
+                
+                # Set plot limits to match the tile extent
+                ax.set_xlim(tile_lon_min, tile_lon_max)
+                ax.set_ylim(tile_lat_min, tile_lat_max)
+                fig.patch.set_facecolor('white')
+                print("    ✓ Map background applied")
+            except Exception as e:
+                print(f"  ⚠️  Could not generate map background: {e}")
+                print("  Falling back to solid color")
+                fig.patch.set_facecolor(background_color)
+                ax.set_facecolor(background_color)
+        elif background_image_url:
             # Download and process background image
             bg_img = ImageProcessor.download_image(background_image_url)
             if bg_img:
@@ -845,8 +1147,13 @@ class MapGenerator:
                        markersize=marker_size, zorder=10, markerfacecolor='white',
                        markeredgecolor=color, markeredgewidth=1, alpha=0.8)
         
-        # Remove axes
-        ax.set_aspect('equal')
+        # Remove axes and set aspect
+        if force_square and use_map_background:
+            # For square with map, use 'auto' to fill the square canvas
+            ax.set_aspect('auto')
+        else:
+            # Normal mode: maintain equal aspect for geographic accuracy
+            ax.set_aspect('equal')
         ax.axis('off')
         
         # Save with different options based on square requirement

@@ -177,6 +177,7 @@ Image generation options:
 - `--img-width PIXELS` - Width in pixels (default: 1000)
 - `--output FILE.png` - Output filename
 - `--use-photo-bg` - Use highlight photo from most popular activity (by kudos) as background
+- `--use-map-bg` - Use minimal OpenStreetMap as background (NO LABELS, muted colors, accurate geography)
 - `--square` - Generate square image (1:1 aspect ratio) - perfect for Instagram/social media
 - `--marker-size SIZE` - Size of start/end markers in points (default: 4 for single, 3 for multi)
 - `--no-markers` - Hide start/end markers completely
@@ -327,6 +328,7 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --bg-color COLOR      Background color for images (default: white)
 --img-width PIXELS    Width of image in pixels (default: 1000)
 --use-photo-bg        Use highlight photo from most popular activity as background (images only)
+--use-map-bg          Use minimal OpenStreetMap as background (NO LABELS, muted colors, accurate)
 --square              Generate square image (1:1 aspect ratio) - perfect for social media
 --marker-size SIZE    Size of start/end markers in points (default: 4 for single, 3 for multi)
 --no-markers          Hide start/end markers completely
@@ -634,6 +636,12 @@ python strava_activity.py --image --marker-size 6 --output large_markers.png
 
 # Tiny markers for minimal look
 python strava_activity.py --multi 20 --image --marker-size 2 --square --img-width 1080 --output minimal.png
+
+# With minimal map background (NO LABELS, accurate geography)
+python strava_activity.py --year 2024 --type Run --image --use-map-bg --square --no-markers --img-width 1500 --output 2024_with_map.png
+
+# City activities with map background
+python strava_activity.py --city "London, UK" --radius 20 --year 2025 --type Run --image --use-map-bg --square --no-markers --output london_runs.png
 ```
 
 ## Common Activity Types

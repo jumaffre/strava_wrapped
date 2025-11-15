@@ -479,6 +479,8 @@ def main():
                           help='Size of start/end markers in points (default: 4 for single, 3 for multi)')
     map_group.add_argument('--no-markers', action='store_true',
                           help='Hide start/end markers on images')
+    map_group.add_argument('--use-map-bg', action='store_true',
+                          help='Use minimal OpenStreetMap as background (accurate geography, muted colors, no labels)')
     
     # Other options
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -767,7 +769,8 @@ def main():
                 show_markers=show_markers,
                 background_image_url=background_photo_url,
                 force_square=args.square,
-                marker_size=marker_size
+                marker_size=marker_size,
+                use_map_background=args.use_map_bg
             )
             
             print(f"\n✓ Multi-activity image saved!")
@@ -900,7 +903,8 @@ def main():
                     background_image_url=background_photo_url,
                     force_square=args.square,
                     show_markers=show_markers,
-                    marker_size=marker_size
+                    marker_size=marker_size,
+                    use_map_background=args.use_map_bg
                 )
                 
                 print(f"\n✓ Image saved!")
@@ -937,17 +941,19 @@ def main():
                 background_image_url=background_photo_url,
                 force_square=args.square,
                 show_markers=show_markers,
-                marker_size=marker_size
+                marker_size=marker_size,
+                use_map_background=args.use_map_bg
             )
             
             print(f"\n✓ Image saved!")
             print(f"  File: {output_file}")
             if args.square:
                 print(f"  Square format: {args.img_width}x{args.img_width}px")
-            if not background_photo_url:
-                print(f"\n💡 Tip: Try different backgrounds with --bg-color")
-                print(f"   Options: white, black, or any hex color (e.g., #F5F5F5)")
-                print(f"   Or use --use-photo-bg to use activity photos as background")
+            if not background_photo_url and not args.use_map_bg:
+                print(f"\n💡 Tip: Try different backgrounds:")
+                print(f"   --bg-color white/black/<hex>")
+                print(f"   --use-photo-bg for activity photos")
+                print(f"   --use-map-bg for minimal geographic map")
         else:
             # Generate single map
             print(f"Smoothing level: {args.smoothing}")
