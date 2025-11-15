@@ -473,6 +473,8 @@ def main():
                           help='Width of static image in pixels (default: 1000)')
     map_group.add_argument('--use-photo-bg', action='store_true',
                           help='Use highlight photo from most popular activity (by kudos) as background for images')
+    map_group.add_argument('--square', action='store_true',
+                          help='Generate square image (1:1 aspect ratio) - perfect for Instagram/social media')
     
     # Other options
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -755,13 +757,17 @@ def main():
                 width_px=args.img_width,
                 background_color=args.bg_color,
                 show_markers=True,
-                background_image_url=background_photo_url
+                background_image_url=background_photo_url,
+                force_square=args.square
             )
             
             print(f"\n✓ Multi-activity image saved!")
             print(f"  File: {output_file}")
             print(f"  {len(activities_data)} activities displayed")
-            print(f"  Size: {args.img_width}px wide")
+            if args.square:
+                print(f"  Size: {args.img_width}x{args.img_width}px (square)")
+            else:
+                print(f"  Size: {args.img_width}px wide")
         else:
             # Generate interactive map
             MapGenerator.create_multi_activity_map(
@@ -878,7 +884,8 @@ def main():
                     line_width=line_width,
                     width_px=args.img_width,
                     background_color=args.bg_color,
-                    background_image_url=background_photo_url
+                    background_image_url=background_photo_url,
+                    force_square=args.square
                 )
                 
                 print(f"\n✓ Image saved!")
@@ -908,11 +915,14 @@ def main():
                 line_width=line_width,
                 width_px=args.img_width,
                 background_color=args.bg_color,
-                background_image_url=background_photo_url
+                background_image_url=background_photo_url,
+                force_square=args.square
             )
             
             print(f"\n✓ Image saved!")
             print(f"  File: {output_file}")
+            if args.square:
+                print(f"  Square format: {args.img_width}x{args.img_width}px")
             if not background_photo_url:
                 print(f"\n💡 Tip: Try different backgrounds with --bg-color")
                 print(f"   Options: white, black, or any hex color (e.g., #F5F5F5)")

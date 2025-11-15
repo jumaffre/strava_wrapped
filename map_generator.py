@@ -594,7 +594,8 @@ class MapGenerator:
     
     def create_image(self, output_file="activity_image.png", smoothing='medium', 
                      line_color='#FC4C02', line_width=2, width_px=1000, 
-                     background_color='white', dpi=100, background_image_url=None):
+                     background_color='white', dpi=100, background_image_url=None,
+                     force_square=False):
         """
         Create a static image of the GPS path without map background
         
@@ -607,6 +608,7 @@ class MapGenerator:
             background_color: Background color ('white', 'black', or hex color) - used if no background_image_url
             dpi: DPI for the output image
             background_image_url: Optional URL to background photo (will be toned down)
+            force_square: Force 1:1 aspect ratio (square image)
         
         Returns:
             Path to saved file
@@ -624,23 +626,29 @@ class MapGenerator:
         lats = coords_array[:, 0]
         lons = coords_array[:, 1]
         
-        # Calculate aspect ratio to maintain geographic accuracy
-        lat_range = np.max(lats) - np.min(lats)
-        lon_range = np.max(lons) - np.min(lons)
-        
-        # Adjust for latitude (longitude degrees are smaller near poles)
-        center_lat = np.mean(lats)
-        lon_scale = np.cos(np.radians(center_lat))
-        adjusted_lon_range = lon_range * lon_scale
-        
-        if adjusted_lon_range > lat_range:
-            aspect_ratio = lat_range / adjusted_lon_range
-            figsize = (width_px / dpi, (width_px * aspect_ratio) / dpi)
-            height_px = int(width_px * aspect_ratio)
+        # Calculate aspect ratio
+        if force_square:
+            # Force square aspect ratio
+            figsize = (width_px / dpi, width_px / dpi)
+            height_px = width_px
         else:
-            aspect_ratio = adjusted_lon_range / lat_range
-            figsize = (width_px / dpi, (width_px / aspect_ratio) / dpi)
-            height_px = int(width_px / aspect_ratio)
+            # Maintain geographic accuracy
+            lat_range = np.max(lats) - np.min(lats)
+            lon_range = np.max(lons) - np.min(lons)
+            
+            # Adjust for latitude (longitude degrees are smaller near poles)
+            center_lat = np.mean(lats)
+            lon_scale = np.cos(np.radians(center_lat))
+            adjusted_lon_range = lon_range * lon_scale
+            
+            if adjusted_lon_range > lat_range:
+                aspect_ratio = lat_range / adjusted_lon_range
+                figsize = (width_px / dpi, (width_px * aspect_ratio) / dpi)
+                height_px = int(width_px * aspect_ratio)
+            else:
+                aspect_ratio = adjusted_lon_range / lat_range
+                figsize = (width_px / dpi, (width_px / aspect_ratio) / dpi)
+                height_px = int(width_px / aspect_ratio)
         
         # Create figure
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
@@ -680,12 +688,17 @@ class MapGenerator:
         ax.set_aspect('equal')
         ax.axis('off')
         
-        # Tight layout
-        plt.tight_layout(pad=0.1)
-        
-        # Save
-        plt.savefig(output_file, dpi=dpi, bbox_inches='tight', 
-                   facecolor=fig.patch.get_facecolor(), edgecolor='none')
+        # Save with different options based on square requirement
+        if force_square:
+            # For square images, don't use bbox_inches='tight' as it breaks the square aspect
+            plt.tight_layout(pad=0)
+            plt.savefig(output_file, dpi=dpi, 
+                       facecolor=fig.patch.get_facecolor(), edgecolor='none')
+        else:
+            # For normal images, use tight to remove whitespace
+            plt.tight_layout(pad=0.1)
+            plt.savefig(output_file, dpi=dpi, bbox_inches='tight', 
+                       facecolor=fig.patch.get_facecolor(), edgecolor='none')
         plt.close()
         
         print(f"Image saved to: {output_file}")
@@ -695,7 +708,7 @@ class MapGenerator:
     def create_multi_activity_image(activities_data, output_file="multi_activity_image.png",
                                      smoothing='medium', line_width=2, width_px=1000,
                                      background_color='white', show_markers=True, dpi=100,
-                                     background_image_url=None):
+                                     background_image_url=None, force_square=False):
         """
         Create a static image with multiple activities displayed together
         
@@ -765,19 +778,24 @@ class MapGenerator:
             })
         
         # Calculate aspect ratio
-        lat_range = np.max(all_lats) - np.min(all_lats)
-        lon_range = np.max(all_lons) - np.min(all_lons)
-        
-        center_lat = np.mean(all_lats)
-        lon_scale = np.cos(np.radians(center_lat))
-        adjusted_lon_range = lon_range * lon_scale
-        
-        if adjusted_lon_range > lat_range:
-            aspect_ratio = lat_range / adjusted_lon_range
-            figsize = (width_px / dpi, (width_px * aspect_ratio) / dpi)
+        if force_square:
+            # Force square aspect ratio
+            figsize = (width_px / dpi, width_px / dpi)
         else:
-            aspect_ratio = adjusted_lon_range / lat_range
-            figsize = (width_px / dpi, (width_px / aspect_ratio) / dpi)
+            # Maintain geographic accuracy
+            lat_range = np.max(all_lats) - np.min(all_lats)
+            lon_range = np.max(all_lons) - np.min(all_lons)
+            
+            center_lat = np.mean(all_lats)
+            lon_scale = np.cos(np.radians(center_lat))
+            adjusted_lon_range = lon_range * lon_scale
+            
+            if adjusted_lon_range > lat_range:
+                aspect_ratio = lat_range / adjusted_lon_range
+                figsize = (width_px / dpi, (width_px * aspect_ratio) / dpi)
+            else:
+                aspect_ratio = adjusted_lon_range / lat_range
+                figsize = (width_px / dpi, (width_px / aspect_ratio) / dpi)
         
         # Create figure
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
@@ -828,12 +846,17 @@ class MapGenerator:
         ax.set_aspect('equal')
         ax.axis('off')
         
-        # Tight layout
-        plt.tight_layout(pad=0.1)
-        
-        # Save
-        plt.savefig(output_file, dpi=dpi, bbox_inches='tight',
-                   facecolor=background_color, edgecolor='none')
+        # Save with different options based on square requirement
+        if force_square:
+            # For square images, don't use bbox_inches='tight' as it breaks the square aspect
+            plt.tight_layout(pad=0)
+            plt.savefig(output_file, dpi=dpi,
+                       facecolor=fig.patch.get_facecolor(), edgecolor='none')
+        else:
+            # For normal images, use tight to remove whitespace
+            plt.tight_layout(pad=0.1)
+            plt.savefig(output_file, dpi=dpi, bbox_inches='tight',
+                       facecolor=fig.patch.get_facecolor(), edgecolor='none')
         plt.close()
         
         print(f"Image saved to: {output_file}")
