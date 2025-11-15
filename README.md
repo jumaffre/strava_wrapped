@@ -267,6 +267,19 @@ Perfect for:
 
 Automatically find geographic clusters where you have many activities - perfect for discovering your favorite training spots!
 
+**🎯 Quick Auto-Discover (One Command!):**
+```bash
+# Automatically find and visualize your main training area
+python strava_activity.py --auto-discover --year 2024 --type Run
+
+# That's it! This will:
+# - Find all clusters in your 2024 runs
+# - Select the largest cluster (your main training area)
+# - Generate a beautiful 5000x5000 square image with map background
+# - Output: 2024_run_main_area.png
+```
+
+**Manual Clustering (More Control):**
 ```bash
 # Discover clusters in your year's activities
 python strava_activity.py --year 2024 --type Run --find-clusters
@@ -353,8 +366,10 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 
 **Clustering (Discover Areas of Interest):**
 ```
---find-clusters       Automatically discover geographic areas with multiple activities
---cluster-radius KM   Radius in km to group activities (default: 5.0)
+--auto-discover       🎯 ONE-COMMAND MODE: Automatically find main training area and generate image
+                      (requires --year and --type, auto-enables clustering + image generation)
+--find-clusters       Manually discover geographic areas with multiple activities
+--cluster-radius KM   Radius in km to group activities (default: 100.0)
 --min-cluster-size N  Minimum activities per cluster (default: 1/3 of total, min 2)
 --cluster-id N        Which cluster to visualize: 0=largest, 1=second, etc. (default: 0)
 ```
@@ -688,7 +703,22 @@ python strava_activity.py --year 2024 --type Run --image --use-map-bg --square -
 python strava_activity.py --city "London, UK" --radius 20 --year 2025 --type Run --image --use-map-bg --square --no-markers --output london_runs.png
 ```
 
-### Example 17: Discover areas of interest (clustering)
+### Example 17: Auto-discover your main training area (ONE COMMAND!)
+```bash
+# 🎯 The easiest way - automatically find and visualize your main training area
+python strava_activity.py --auto-discover --year 2024 --type Run
+
+# For cycling
+python strava_activity.py --auto-discover --year 2024 --type Ride
+
+# With custom output name
+python strava_activity.py --auto-discover --year 2024 --type Run --output my_home_base.png
+
+# Customize clustering parameters
+python strava_activity.py --auto-discover --year 2024 --type Run --cluster-radius 50 --min-cluster-size 20
+```
+
+### Example 18: Manual cluster discovery (more control)
 ```bash
 # Find all your training hotspots from 2024
 python strava_activity.py --year 2024 --type Run --find-clusters

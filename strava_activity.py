@@ -460,6 +460,8 @@ def main():
                               help='Minimum activities per cluster (default: 1/3 of total, min 2)')
     cluster_group.add_argument('--cluster-id', type=int, default=0,
                               help='Which cluster to visualize (0=largest, 1=second largest, etc. Default: 0)')
+    cluster_group.add_argument('--auto-discover', action='store_true',
+                              help='Auto mode: find main training area and generate beautiful image (requires --year and --type)')
     
     # Map generation options
     map_group = parser.add_argument_group('map generation')
@@ -498,6 +500,34 @@ def main():
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
     
     args = parser.parse_args()
+    
+    # Handle auto-discover mode
+    if args.auto_discover:
+        # Validate requirements
+        if not args.year:
+            print("❌ Error: --auto-discover requires --year")
+            print("Example: python strava_activity.py --auto-discover --year 2024 --type Run")
+            sys.exit(1)
+        if not args.type:
+            print("❌ Error: --auto-discover requires --type")
+            print("Example: python strava_activity.py --auto-discover --year 2024 --type Run")
+            sys.exit(1)
+        
+        # Automatically enable features for best visualization
+        args.find_clusters = True
+        args.image = True
+        args.square = True
+        args.use_map_bg = True
+        args.no_markers = True
+        
+        # Set output filename if not specified
+        if not args.output:
+            args.output = f"{args.year}_{args.type.lower()}_main_area.png"
+        
+        print(f"🎯 Auto-Discover Mode Enabled")
+        print(f"   Finding main training area for {args.type} activities in {args.year}")
+        print(f"   Will generate: {args.output}")
+        print()
     
     # Load environment variables
     load_dotenv()
