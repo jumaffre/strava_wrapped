@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from map_generator import MapGenerator
 from location_utils import LocationUtils
+from clustering_utils import ActivityClusterer
 
 
 class StravaAPI:
@@ -449,6 +450,17 @@ def main():
     activity_group.add_argument('--radius', type=float, default=10.0,
                                help='Radius in kilometers for city-based filtering (default: 10.0). Only used with --city')
     
+    # Clustering options
+    cluster_group = parser.add_argument_group('clustering (discover areas of interest)')
+    cluster_group.add_argument('--find-clusters', action='store_true',
+                              help='Automatically discover geographic areas where you have multiple activities')
+    cluster_group.add_argument('--cluster-radius', type=float, default=100.0,
+                              help='Radius in km to group activities into clusters (default: 100.0)')
+    cluster_group.add_argument('--min-cluster-size', type=int, default=None,
+                              help='Minimum activities per cluster (default: 1/3 of total, min 2)')
+    cluster_group.add_argument('--cluster-id', type=int, default=0,
+                              help='Which cluster to visualize (0=largest, 1=second largest, etc. Default: 0)')
+    
     # Map generation options
     map_group = parser.add_argument_group('map generation')
     map_group.add_argument('--map', action='store_true', help='Generate an interactive map')
@@ -708,6 +720,45 @@ def main():
                 print(f"\n❌ No activities found within {args.radius}km of {args.city}")
                 print(f"Tip: Try increasing the radius with --radius <km>")
                 return
+        
+        # Apply clustering if requested
+        if args.find_clusters:
+            print(f"\n{'='*60}")
+            print("Finding Areas of Interest (Clustering)")
+            print(f"{'='*60}")
+            
+            clusters = ActivityClusterer.find_areas_of_interest(
+                activities_data,
+                radius_km=args.cluster_radius,
+                min_activities=args.min_cluster_size,
+                debug=args.debug
+            )
+            
+            if not clusters:
+                print(f"\n❌ No clusters found with radius {args.cluster_radius}km")
+                print(f"Tip: Try increasing --cluster-radius or reducing --min-cluster-size")
+                return
+            
+            print(f"\n✓ Found {len(clusters)} areas of interest:")
+            for i, cluster in enumerate(clusters):
+                center_lat, center_lon = cluster['center']
+                print(f"\n  Cluster {i}: {cluster['count']} activities")
+                print(f"    Center: {center_lat:.6f}, {center_lon:.6f}")
+                print(f"    Activities within {cluster['radius_km']}km")
+            
+            # Select which cluster to use
+            if args.cluster_id >= len(clusters):
+                print(f"\n❌ Cluster {args.cluster_id} doesn't exist (only {len(clusters)} clusters found)")
+                print(f"Valid cluster IDs: 0 to {len(clusters) - 1}")
+                return
+            
+            selected_cluster = clusters[args.cluster_id]
+            original_count = len(activities_data)
+            activities_data = ActivityClusterer.filter_by_cluster(activities_data, selected_cluster, debug=args.debug)
+            
+            print(f"\n✓ Using Cluster {args.cluster_id}: {len(activities_data)} activities")
+            print(f"  Center: {selected_cluster['center'][0]:.6f}, {selected_cluster['center'][1]:.6f}")
+            print(f"  ({original_count - len(activities_data)} activities filtered out)")
         
         # Determine output filename
         if args.output:

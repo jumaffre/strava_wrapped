@@ -263,6 +263,42 @@ Perfect for:
 - 🚴 Mapping rides in different cities you've visited
 - 📍 Creating location-specific training maps
 
+### Discover Areas of Interest (Clustering)
+
+Automatically find geographic clusters where you have many activities - perfect for discovering your favorite training spots!
+
+```bash
+# Discover clusters in your year's activities
+python strava_activity.py --year 2024 --type Run --find-clusters
+
+# Find clusters and visualize the largest one
+python strava_activity.py --year 2024 --type Run --find-clusters --image --square --use-map-bg --no-markers
+
+# Customize clustering parameters
+python strava_activity.py --multi 50 --find-clusters --cluster-radius 3 --min-cluster-size 5
+
+# Visualize second largest cluster
+python strava_activity.py --year 2024 --find-clusters --cluster-id 1 --image --square
+```
+
+**How it works:**
+- Groups activities by their starting locations
+- Finds areas where you have many activities within a radius
+- Automatically discovers your favorite training spots
+- Default: groups activities within 5km, needs at least 1/3 of total
+
+**Options:**
+- `--find-clusters` - Enable cluster discovery
+- `--cluster-radius KM` - Radius to group activities (default: 5.0)
+- `--min-cluster-size N` - Min activities per cluster (default: 1/3 of total, min 2)
+- `--cluster-id N` - Which cluster to visualize (0=largest, default: 0)
+
+Perfect for:
+- 🎯 Finding your most frequented training areas
+- 🏠 Discovering your home base automatically
+- 🗺️ Analyzing training patterns across different locations
+- 📊 Creating focused maps of specific training spots
+
 ### Map Generation Options
 
 **Choose smoothing level:**
@@ -313,6 +349,14 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --count N             Number of activities to list (default: 10, ignored with --year)
 --city CITY           Filter by location - city name (e.g., "San Francisco" or "Paris, France")
 --radius KM           Radius in km for location filter (default: 10.0, only used with --city)
+```
+
+**Clustering (Discover Areas of Interest):**
+```
+--find-clusters       Automatically discover geographic areas with multiple activities
+--cluster-radius KM   Radius in km to group activities (default: 5.0)
+--min-cluster-size N  Minimum activities per cluster (default: 1/3 of total, min 2)
+--cluster-id N        Which cluster to visualize: 0=largest, 1=second, etc. (default: 0)
 ```
 
 **Map Generation:**
@@ -642,6 +686,21 @@ python strava_activity.py --year 2024 --type Run --image --use-map-bg --square -
 
 # City activities with map background
 python strava_activity.py --city "London, UK" --radius 20 --year 2025 --type Run --image --use-map-bg --square --no-markers --output london_runs.png
+```
+
+### Example 17: Discover areas of interest (clustering)
+```bash
+# Find all your training hotspots from 2024
+python strava_activity.py --year 2024 --type Run --find-clusters
+
+# Visualize your main training area (largest cluster)
+python strava_activity.py --year 2024 --type Run --find-clusters --image --square --use-map-bg --no-markers --output main_area.png
+
+# See your second most frequent area
+python strava_activity.py --year 2024 --find-clusters --cluster-id 1 --image --square
+
+# Fine-tune clustering (smaller radius, more strict)
+python strava_activity.py --multi 100 --find-clusters --cluster-radius 3 --min-cluster-size 10 --image
 ```
 
 ## Common Activity Types
