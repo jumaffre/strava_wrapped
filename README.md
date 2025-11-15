@@ -381,7 +381,8 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --multi, -m N         Generate map with last N activities (aggregate multiple activities)
 --output, -o FILE     Output filename (default: activity_map.html or activity_image.png)
 --smoothing, -s LEVEL Smoothing level: none, light, medium, heavy, strava (default: medium)
---color, -c COLOR     Path color in hex format (default: #FC4C02)
+--color, -c COLOR     Path color in hex format (default: #FC4C02 - Strava orange)
+--strava-color        Use Strava orange for ALL activities (instead of multi-color palette)
 --width, -w WIDTH     Line width in pixels (default: 3 for maps, 10 for images)
 --compare             Generate comparison map showing all smoothing levels
 --bg-color COLOR      Background color for images (default: white)
@@ -701,6 +702,9 @@ python strava_activity.py --year 2024 --type Run --image --use-map-bg --square -
 
 # City activities with map background
 python strava_activity.py --city "London, UK" --radius 20 --year 2025 --type Run --image --use-map-bg --square --no-markers --output london_runs.png
+
+# All activities in Strava orange (instead of multi-color)
+python strava_activity.py --year 2024 --type Run --image --strava-color --square --use-map-bg --no-markers --output 2024_orange.png
 ```
 
 ### Example 17: Auto-discover your main training area (ONE COMMAND!)

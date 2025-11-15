@@ -661,7 +661,8 @@ class MapGenerator:
     
     @staticmethod
     def create_multi_activity_map(activities_data, output_file="multi_activity_map.html", 
-                                   smoothing='medium', line_width=3, show_markers=True):
+                                   smoothing='medium', line_width=3, show_markers=True,
+                                   single_color=None):
         """
         Create a map with multiple activities displayed together
         
@@ -736,7 +737,10 @@ class MapGenerator:
             date = activity.get('date', '')
             
             # Assign color
-            if 'color' in activity:
+            if single_color:
+                # Use single color for all activities
+                color = single_color
+            elif 'color' in activity:
                 color = activity['color']
             else:
                 color = color_palette[i % len(color_palette)]
@@ -978,7 +982,7 @@ class MapGenerator:
                                      smoothing='medium', line_width=10, width_px=5000,
                                      background_color='white', show_markers=True, dpi=100,
                                      background_image_url=None, force_square=False, marker_size=15,
-                                     use_map_background=False):
+                                     use_map_background=False, single_color=None):
         """
         Create a static image with multiple activities displayed together
         
@@ -1028,7 +1032,10 @@ class MapGenerator:
             name = activity.get('name', f'Activity {i+1}')
             
             # Assign color
-            if 'color' in activity:
+            if single_color:
+                # Use single color for all activities
+                color = single_color
+            elif 'color' in activity:
                 color = activity['color']
             else:
                 color = color_palette[i % len(color_palette)]

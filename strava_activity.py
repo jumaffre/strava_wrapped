@@ -477,6 +477,8 @@ def main():
                           help='Smoothing level for the GPS path (default: medium)')
     map_group.add_argument('--color', '-c', default='#FC4C02',
                           help='Path color in hex format (default: #FC4C02 - Strava orange)')
+    map_group.add_argument('--strava-color', action='store_true',
+                          help='Use Strava orange (#FC4C02) for ALL activities instead of color palette')
     map_group.add_argument('--width', '-w', type=int, default=3,
                           help='Path line width in pixels (default: 3 for maps, 10 for images)')
     map_group.add_argument('--compare', action='store_true',
@@ -839,6 +841,9 @@ def main():
             show_markers = not args.no_markers
             marker_size = args.marker_size if args.marker_size is not None else 15
             
+            # Set single color if requested
+            single_color = args.color if args.strava_color else None
+            
             # Generate static image
             MapGenerator.create_multi_activity_image(
                 activities_data,
@@ -851,7 +856,8 @@ def main():
                 background_image_url=background_photo_url,
                 force_square=args.square,
                 marker_size=marker_size,
-                use_map_background=args.use_map_bg
+                use_map_background=args.use_map_bg,
+                single_color=single_color
             )
             
             print(f"\n✓ Multi-activity image saved!")
@@ -862,13 +868,17 @@ def main():
             else:
                 print(f"  Size: {args.img_width}px wide")
         else:
+            # Set single color if requested
+            single_color = args.color if args.strava_color else None
+            
             # Generate interactive map
             MapGenerator.create_multi_activity_map(
                 activities_data,
                 output_file=output_file,
                 smoothing=args.smoothing,
                 line_width=line_width,
-                show_markers=True
+                show_markers=True,
+                single_color=single_color
             )
             
             print(f"\n✓ Multi-activity map saved!")
