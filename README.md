@@ -39,21 +39,27 @@ cd strava_wrapped
 
 ### 2. Install Dependencies
 
-You can install dependencies globally or in a virtual environment:
+**Recommended: Install in development mode (using virtual environment)**
 
-**Option A: Using virtual environment (recommended):**
+This is the cleanest approach and allows imports to work properly:
+
 ```bash
+# Create and activate virtual environment
 python3 -m venv env
 source env/bin/activate  # On Windows: env\Scripts\activate
-pip install -r requirements.txt
+
+# Install the package in development mode
+pip install -e .
 ```
 
-**Option B: Global install:**
+This installs the package in "editable" mode, so changes to the code are immediately available without reinstalling.
+
+**Alternative: Install dependencies only (not recommended)**
 ```bash
 pip install -r requirements.txt
 ```
 
-If using a virtual environment, remember to activate it before running commands:
+Note: If using a virtual environment, remember to activate it before running commands:
 ```bash
 source env/bin/activate  # Run this in each new terminal session
 ```
@@ -472,14 +478,17 @@ strava_wrapped/
 ├── .gitignore             # Git ignore rules
 ├── README.md              # This file
 ├── requirements.txt       # Python dependencies
-└── src/                   # Source code directory
-    ├── __init__.py        # Package initialization
-    ├── clustering_utils.py # Clustering and areas of interest utilities
-    ├── location_utils.py  # Location filtering and geocoding utilities
-    ├── map_generator.py   # Map generation and path smoothing utilities
-    ├── strava_activity.py # Main script
-    ├── example_map_usage.py      # Example: Using MapGenerator programmatically
-    ├── example_multi_activity.py # Example: Creating multi-activity maps
+├── setup.py               # Package setup configuration
+├── src/                   # Source code directory
+│   ├── __init__.py        # Package initialization
+│   ├── clustering_utils.py # Clustering and areas of interest utilities
+│   ├── location_utils.py  # Location filtering and geocoding utilities
+│   ├── map_generator.py   # Map generation and path smoothing utilities
+│   ├── strava_activity.py # Main script
+│   ├── example_map_usage.py      # Example: Using MapGenerator programmatically
+│   └── example_multi_activity.py # Example: Creating multi-activity maps
+└── tests/                 # Test files
+    ├── __init__.py
     ├── test_alignment.py         # Test: GPS route alignment
     ├── test_final_alignment.py   # Test: Final alignment in square mode
     └── test_square_alignment.py  # Test: Square image alignment
@@ -579,10 +588,10 @@ If you get a 401 error:
 ## Quick Start Summary
 
 ```bash
-# 1. Install dependencies (optionally in a virtual environment)
+# 1. Create virtual environment and install package
 python3 -m venv env
 source env/bin/activate  # On Windows: env\Scripts\activate
-pip install -r requirements.txt
+pip install -e .
 
 # 2. Get your Strava API credentials
 # Follow Step 3 in the Setup section to get your refresh token

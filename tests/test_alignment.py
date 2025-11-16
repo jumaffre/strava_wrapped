@@ -3,7 +3,7 @@
 Test GPS route alignment with map background
 """
 
-from map_generator import MapGenerator
+from src.map_generator import MapGenerator
 import numpy as np
 
 print("Testing GPS route alignment with map background...")
