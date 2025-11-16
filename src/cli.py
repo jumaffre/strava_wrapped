@@ -211,14 +211,14 @@ def format_pace(distance_meters, time_seconds, activity_type):
         minutes_per_km = time_seconds / 60 / km
         mins = int(minutes_per_km)
         secs = int((minutes_per_km - mins) * 60)
-        return f"{mins}:{secs:02d} min/km"
+        return f"{mins}:{secs:02d}min/km"
     
     # For cycling and other activities, use km/h
     else:
         km = distance_meters / 1000
         hours = time_seconds / 3600
         kmh = km / hours
-        return f"{kmh:.1f} km/h"
+        return f"{kmh:.1f}km/h"
 
 
 def format_time(seconds):
@@ -309,7 +309,7 @@ def display_statistics(stats, activities, strava, debug=False):
     
     print(f"📈 Summary:")
     print(f"   Total Activities: {stats['count']}")
-    print(f"   Total Distance: {stats['total_distance']/1000:.2f} km")
+    print(f"   Total Distance: {stats['total_distance']/1000:.0f} km")
     print(f"   Total Elevation Gain: {stats['total_elevation_gain']:.0f} m")
     print(f"   Total Moving Time: {format_time(stats['total_moving_time'])}")
     

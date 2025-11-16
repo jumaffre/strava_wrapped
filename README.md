@@ -883,7 +883,7 @@ The border adds:
 When combined with `--stats`, the bottom border displays:
 - Title with your name and year/activity type (Title Case)
 - Two rows of statistics in a clean grid layout
-- Bold numbers with units (e.g., "55km", "12hrs") - no space for cleaner look
+- Bold numbers with smaller units (e.g., "55km", "12hrs", "661km") - units are smaller for emphasis on the numbers
 - Lowercase labels (e.g., "Distance", "Time", "Pace")
 - Elegant Helvetica typography with generous spacing and padding
 
