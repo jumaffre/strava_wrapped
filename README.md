@@ -39,8 +39,23 @@ cd strava_wrapped
 
 ### 2. Install Dependencies
 
+You can install dependencies globally or in a virtual environment:
+
+**Option A: Using virtual environment (recommended):**
+```bash
+python3 -m venv env
+source env/bin/activate  # On Windows: env\Scripts\activate
+pip install -r requirements.txt
+```
+
+**Option B: Global install:**
 ```bash
 pip install -r requirements.txt
+```
+
+If using a virtual environment, remember to activate it before running commands:
+```bash
+source env/bin/activate  # Run this in each new terminal session
 ```
 
 ### 3. Get Strava API Credentials
@@ -85,7 +100,7 @@ STRAVA_REFRESH_TOKEN=your_refresh_token_here
 Run the script to fetch and display GPS coordinates from your latest activity:
 
 ```bash
-python strava_activity.py
+python src/strava_activity.py
 ```
 
 ### Activity Selection
@@ -457,9 +472,17 @@ strava_wrapped/
 ├── .gitignore             # Git ignore rules
 ├── README.md              # This file
 ├── requirements.txt       # Python dependencies
-├── location_utils.py      # Location filtering and geocoding utilities
-├── map_generator.py       # Map generation and path smoothing utilities
-└── strava_activity.py     # Main script
+└── src/                   # Source code directory
+    ├── __init__.py        # Package initialization
+    ├── clustering_utils.py # Clustering and areas of interest utilities
+    ├── location_utils.py  # Location filtering and geocoding utilities
+    ├── map_generator.py   # Map generation and path smoothing utilities
+    ├── strava_activity.py # Main script
+    ├── example_map_usage.py      # Example: Using MapGenerator programmatically
+    ├── example_multi_activity.py # Example: Creating multi-activity maps
+    ├── test_alignment.py         # Test: GPS route alignment
+    ├── test_final_alignment.py   # Test: Final alignment in square mode
+    └── test_square_alignment.py  # Test: Square image alignment
 ```
 
 ## Map Smoothing Explained
@@ -485,7 +508,11 @@ The GPS data from Strava can be noisy due to GPS inaccuracies. This tool provide
 You can also use the map generator in your own Python scripts:
 
 ```python
-from map_generator import MapGenerator
+# If importing from project root:
+from src.map_generator import MapGenerator
+
+# If importing from within src/:
+# from map_generator import MapGenerator
 
 # Your GPS coordinates
 coordinates = [[37.7749, -122.4194], [37.7750, -122.4195], ...]
@@ -552,7 +579,9 @@ If you get a 401 error:
 ## Quick Start Summary
 
 ```bash
-# 1. Install dependencies
+# 1. Install dependencies (optionally in a virtual environment)
+python3 -m venv env
+source env/bin/activate  # On Windows: env\Scripts\activate
 pip install -r requirements.txt
 
 # 2. Get your Strava API credentials
@@ -564,10 +593,10 @@ pip install -r requirements.txt
 # STRAVA_REFRESH_TOKEN=...
 
 # 4. Generate a map of your latest activity
-python strava_activity.py --map
+python src/strava_activity.py --map
 
 # 5. Or create a year in review with all your 2024 activities
-python strava_activity.py --year 2024 --map --output year_2024.html
+python src/strava_activity.py --year 2024 --map --output year_2024.html
 
 # 6. Open the HTML file in your browser!
 ```
