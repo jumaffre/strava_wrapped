@@ -248,6 +248,36 @@ This automatically fetches ALL activities from the specified year (no need to sp
 - 🏆 Celebrating your accomplishments
 - 📊 Reviewing your entire year of activities at once
 
+### Display Activity Statistics
+
+View comprehensive statistics for your filtered activities:
+
+```bash
+# Show statistics for last 10 activities
+python src/cli.py --list --count 10 --stats
+
+# Show statistics for all runs in 2024
+python src/cli.py --year 2024 --type Run --stats
+
+# Show statistics for activities near a city
+python src/cli.py --city "San Francisco" --year 2024 --stats
+
+# Combine with map generation
+python src/cli.py --year 2024 --type Run --stats --map --output 2024_runs.html
+```
+
+**What statistics are shown:**
+- 📈 **Summary**: Total activities, distance, elevation gain, moving time
+- 🏃 **Activity Breakdown**: Statistics per activity type (Run, Ride, etc.)
+  - Distance and time per type
+  - Average pace (min/km for running, km/h for cycling)
+- 👥 **Engagement**: Total kudos and comments
+
+**Tips:**
+- Works with all filtering options (`--year`, `--type`, `--city`, `--multi`)
+- Use `--stats` alone to see statistics without generating maps
+- Combine with `--map` or `--image` to see stats and create visualizations
+
 ### Filter Activities by Location
 
 Use the `--city` and `--radius` flags to filter activities based on where they started. The filter checks only the **first GPS point** of each activity:
@@ -393,6 +423,11 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --cluster-radius KM   Radius in km to group activities (default: 100.0)
 --min-cluster-size N  Minimum activities per cluster (default: 1/3 of total, min 2)
 --cluster-id N        Which cluster to visualize: 0=largest, 1=second, etc. (default: 0)
+```
+
+**Statistics:**
+```
+--stats               Display statistics for filtered activities (distance, elevation, time, pace, participants)
 ```
 
 **Map Generation:**
@@ -796,7 +831,23 @@ python src/cli.py --auto-discover --year 2024 --type Run --output my_home_base.p
 python src/cli.py --auto-discover --year 2024 --type Run --cluster-radius 50 --min-cluster-size 20
 ```
 
-### Example 18: Manual cluster discovery (more control)
+### Example 18: View activity statistics
+
+```bash
+# Show statistics for your recent activities
+python src/cli.py --list --count 20 --stats
+
+# Statistics for all 2024 runs
+python src/cli.py --year 2024 --type Run --stats
+
+# Statistics for rides in a specific city
+python src/cli.py --city "Paris, France" --year 2024 --type Ride --stats
+
+# View stats and generate map
+python src/cli.py --year 2024 --type Run --stats --map --output 2024_runs.html
+```
+
+### Example 19: Manual cluster discovery (more control)
 ```bash
 # Find all your training hotspots from 2024
 python src/cli.py --year 2024 --type Run --find-clusters

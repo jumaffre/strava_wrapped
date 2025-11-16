@@ -135,6 +135,185 @@ def display_gps_coordinates(streams):
             lat, lng = coord
             print(f"  {i}. Latitude: {lat:.6f}, Longitude: {lng:.6f}")
 
+
+def calculate_statistics(activities):
+    """
+    Calculate statistics from a list of activities
+    
+    Args:
+        activities: List of activity dicts from Strava API
+    
+    Returns:
+        Dict with calculated statistics
+    """
+    if not activities:
+        return None
+    
+    total_distance = 0  # meters
+    total_elevation_gain = 0  # meters
+    total_moving_time = 0  # seconds
+    unique_people = set()
+    activity_types = {}
+    
+    for activity in activities:
+        # Distance
+        total_distance += activity.get('distance', 0)
+        
+        # Elevation gain
+        total_elevation_gain += activity.get('total_elevation_gain', 0)
+        
+        # Moving time
+        total_moving_time += activity.get('moving_time', 0)
+        
+        # Track activity types for pace calculation
+        activity_type = activity.get('type', 'Unknown')
+        if activity_type not in activity_types:
+            activity_types[activity_type] = {'distance': 0, 'time': 0, 'count': 0}
+        activity_types[activity_type]['distance'] += activity.get('distance', 0)
+        activity_types[activity_type]['time'] += activity.get('moving_time', 0)
+        activity_types[activity_type]['count'] += 1
+        
+        # Collect unique athletes from kudos
+        if 'kudos_count' in activity and activity['kudos_count'] > 0:
+            # Note: The basic activity object doesn't include kudoer details
+            # We'll need to fetch detailed activity data to get names
+            pass
+    
+    return {
+        'count': len(activities),
+        'total_distance': total_distance,
+        'total_elevation_gain': total_elevation_gain,
+        'total_moving_time': total_moving_time,
+        'activity_types': activity_types,
+        'unique_people': unique_people
+    }
+
+
+def format_pace(distance_meters, time_seconds, activity_type):
+    """
+    Format pace based on activity type
+    
+    Args:
+        distance_meters: Distance in meters
+        time_seconds: Time in seconds
+        activity_type: Type of activity (Run, Ride, etc.)
+    
+    Returns:
+        Formatted pace string
+    """
+    if distance_meters == 0 or time_seconds == 0:
+        return "N/A"
+    
+    # For running activities, use min/km
+    if activity_type in ['Run', 'Walk', 'Hike', 'TrailRun']:
+        # Calculate minutes per kilometer
+        km = distance_meters / 1000
+        minutes_per_km = time_seconds / 60 / km
+        mins = int(minutes_per_km)
+        secs = int((minutes_per_km - mins) * 60)
+        return f"{mins}:{secs:02d} min/km"
+    
+    # For cycling and other activities, use km/h
+    else:
+        km = distance_meters / 1000
+        hours = time_seconds / 3600
+        kmh = km / hours
+        return f"{kmh:.1f} km/h"
+
+
+def format_time(seconds):
+    """Format time in seconds to human-readable string"""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    
+    if hours > 0:
+        return f"{hours}h {minutes}m {secs}s"
+    elif minutes > 0:
+        return f"{minutes}m {secs}s"
+    else:
+        return f"{secs}s"
+
+
+def display_statistics(stats, activities, strava, debug=False):
+    """
+    Display formatted statistics
+    
+    Args:
+        stats: Statistics dict from calculate_statistics()
+        activities: Original list of activities (for fetching details)
+        strava: StravaAPI instance for fetching detailed data
+        debug: Enable debug output
+    """
+    if not stats:
+        print("No statistics to display")
+        return
+    
+    print(f"\n{'='*60}")
+    print(f"📊 Activity Statistics")
+    print(f"{'='*60}\n")
+    
+    print(f"📈 Summary:")
+    print(f"   Total Activities: {stats['count']}")
+    print(f"   Total Distance: {stats['total_distance']/1000:.2f} km")
+    print(f"   Total Elevation Gain: {stats['total_elevation_gain']:.0f} m")
+    print(f"   Total Moving Time: {format_time(stats['total_moving_time'])}")
+    
+    # Activity type breakdown
+    if stats['activity_types']:
+        print(f"\n🏃 Activity Breakdown:")
+        for activity_type, data in sorted(stats['activity_types'].items(), 
+                                         key=lambda x: x[1]['count'], reverse=True):
+            count = data['count']
+            distance = data['distance']
+            time = data['time']
+            pace = format_pace(distance, time, activity_type)
+            
+            print(f"   {activity_type}: {count} activities")
+            print(f"      Distance: {distance/1000:.2f} km")
+            print(f"      Time: {format_time(time)}")
+            print(f"      Avg Pace: {pace}")
+    
+    # Fetch detailed data for unique participants
+    print(f"\n👥 Fetching participant data...")
+    unique_athletes = {}  # athlete_id: name
+    
+    for i, activity in enumerate(activities[:min(20, len(activities))], 1):
+        # Only fetch for a subset to avoid too many API calls
+        if debug:
+            print(f"   Fetching details for activity {i}/{min(20, len(activities))}...")
+        
+        try:
+            detailed_activity = strava.get_activity_by_id(activity['id'])
+            
+            # Get kudos
+            if 'kudos_count' in detailed_activity and detailed_activity['kudos_count'] > 0:
+                # Kudos are not included in standard API response by default
+                # We'd need to make additional API calls
+                pass
+            
+            # Get comments
+            if 'comment_count' in detailed_activity and detailed_activity['comment_count'] > 0:
+                # Comments are also not included by default
+                pass
+                
+        except Exception as e:
+            if debug:
+                print(f"      Error fetching details: {e}")
+            continue
+    
+    # For now, show a note about participants
+    print(f"   Note: Detailed participant data requires additional API calls")
+    print(f"   Showing basic activity engagement:")
+    
+    total_kudos = sum(activity.get('kudos_count', 0) for activity in activities)
+    total_comments = sum(activity.get('comment_count', 0) for activity in activities)
+    
+    print(f"      Total Kudos: {total_kudos}")
+    print(f"      Total Comments: {total_comments}")
+    
+    print(f"\n{'='*60}")
+
 def main():
     """Main function to fetch and display Strava activity GPS data"""
     # Parse command line arguments
@@ -211,6 +390,10 @@ def main():
                           help='Hide start/end markers on images')
     map_group.add_argument('--use-map-bg', action='store_true',
                           help='Use minimal OpenStreetMap as background (accurate geography, muted colors, no labels)')
+    
+    # Statistics options
+    parser.add_argument('--stats', action='store_true',
+                       help='Display statistics for filtered activities (distance, elevation, time, pace, participants)')
     
     # Other options
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
@@ -371,7 +554,20 @@ def main():
                 print(f"   Started {dist_from_center:.2f} km from {args.city}")
                 print()
         else:
-            list_activities(strava, activity_type=args.type, count=args.count, year=args.year)
+            # Fetch activities for listing
+            if args.year:
+                after, before = get_year_timestamps(args.year)
+                activities = strava.get_activities(per_page=200, activity_type=args.type, 
+                                                  after=after, before=before)
+            else:
+                activities = strava.get_activities(per_page=args.count, activity_type=args.type)
+            
+            # Show statistics if requested
+            if args.stats and activities:
+                stats = calculate_statistics(activities)
+                display_statistics(stats, activities, strava, debug=args.debug)
+            else:
+                list_activities(strava, activity_type=args.type, count=args.count, year=args.year)
         return
     
     # Handle --multi option or --year without specific count (aggregate multiple activities)
@@ -428,7 +624,12 @@ def main():
                         'type': activity_type_str,
                         'date': activity_date,
                         'id': activity_id,
-                        'kudos_count': activity.get('kudos_count', 0)
+                        'kudos_count': activity.get('kudos_count', 0),
+                        # Add fields needed for statistics
+                        'distance': activity.get('distance', 0),
+                        'total_elevation_gain': activity.get('total_elevation_gain', 0),
+                        'moving_time': activity.get('moving_time', 0),
+                        'comment_count': activity.get('comment_count', 0)
                     })
                 else:
                     print(f"      ⚠️  No GPS data available")
@@ -505,6 +706,15 @@ def main():
             print(f"\n✓ Using Cluster {args.cluster_id}: {len(activities_data)} activities")
             print(f"  Center: {selected_cluster['center'][0]:.6f}, {selected_cluster['center'][1]:.6f}")
             print(f"  ({original_count - len(activities_data)} activities filtered out)")
+        
+        # Display statistics if requested (after all filtering is done)
+        if args.stats:
+            stats = calculate_statistics(activities_data)
+            display_statistics(stats, activities_data, strava, debug=args.debug)
+            
+            # If only stats were requested (no map/image), exit here
+            if not (args.map or args.image or args.compare):
+                return
         
         # Determine output filename
         if args.output:
