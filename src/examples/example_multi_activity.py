@@ -5,7 +5,10 @@ Example: Creating multi-activity maps programmatically
 This example shows how to aggregate multiple activities on one map
 """
 
-from map_generator import MapGenerator
+try:
+    from src.lib.map_generator import MapGenerator
+except ImportError:
+    from lib.map_generator import MapGenerator
 
 # Example: Multiple activities from different locations
 activities = [

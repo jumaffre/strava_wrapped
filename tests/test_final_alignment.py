@@ -3,7 +3,7 @@
 Final test of map background alignment in square mode
 """
 
-from src.map_generator import MapGenerator
+from src.lib.map_generator import MapGenerator
 import numpy as np
 
 print("Final alignment test - square mode")

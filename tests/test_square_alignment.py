@@ -3,7 +3,7 @@
 Test that map background aligns with GPS routes in square mode
 """
 
-from src.map_generator import MapGenerator
+from src.lib.map_generator import MapGenerator
 import numpy as np
 
 print("Testing square image alignment with map background...")

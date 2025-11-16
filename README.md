@@ -481,13 +481,17 @@ strava_wrapped/
 ├── setup.py               # Package setup configuration
 ├── src/                   # Source code directory
 │   ├── __init__.py        # Package initialization
-│   ├── strava_api.py      # Strava API client (StravaAPI class)
 │   ├── cli.py             # Command-line interface (main entry point)
 │   ├── clustering_utils.py # Clustering and areas of interest utilities
-│   ├── location_utils.py  # Location filtering and geocoding utilities
-│   ├── map_generator.py   # Map generation and path smoothing utilities
-│   ├── example_map_usage.py      # Example: Using MapGenerator programmatically
-│   └── example_multi_activity.py # Example: Creating multi-activity maps
+│   ├── lib/               # Core library modules
+│   │   ├── __init__.py
+│   │   ├── strava_api.py  # Strava API client (StravaAPI class)
+│   │   ├── map_generator.py # Map generation and path smoothing
+│   │   └── location_utils.py # Location filtering and geocoding
+│   └── examples/          # Example scripts
+│       ├── __init__.py
+│       ├── example_map_usage.py      # Using MapGenerator programmatically
+│       └── example_multi_activity.py # Creating multi-activity maps
 └── tests/                 # Test files
     ├── __init__.py
     ├── test_alignment.py         # Test: GPS route alignment
@@ -520,7 +524,7 @@ The codebase is now modular and organized for easy reuse. Here's how to use diff
 #### Using the Strava API Client
 
 ```python
-from src.strava_api import StravaAPI
+from src.lib.strava_api import StravaAPI
 
 # Initialize API client
 strava = StravaAPI(client_id, client_secret, refresh_token)
@@ -536,11 +540,7 @@ coordinates = streams['latlng']['data']
 #### Using the Map Generator
 
 ```python
-# If importing from project root:
-from src.map_generator import MapGenerator
-
-# If importing from within src/:
-# from map_generator import MapGenerator
+from src.lib.map_generator import MapGenerator
 
 # Your GPS coordinates
 coordinates = [[37.7749, -122.4194], [37.7750, -122.4195], ...]
@@ -565,11 +565,20 @@ generator.save_map(
 
 #### Module Overview
 
-- **`strava_api.py`**: Strava API client - contains the `StravaAPI` class for all API interactions
+**CLI:**
 - **`cli.py`**: Command-line interface - main entry point for the CLI application
+
+**Core Library (src/lib/):**
+- **`strava_api.py`**: Strava API client - contains the `StravaAPI` class for all API interactions
 - **`map_generator.py`**: Map and image generation utilities
 - **`location_utils.py`**: Location filtering and geocoding
+
+**Utilities:**
 - **`clustering_utils.py`**: Geographic clustering for finding areas of interest
+
+**Examples (src/examples/):**
+- **`example_map_usage.py`**: Shows how to use MapGenerator programmatically
+- **`example_multi_activity.py`**: Shows how to create multi-activity maps
 
 ## Security Note
 

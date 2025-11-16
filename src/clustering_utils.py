@@ -4,9 +4,9 @@ Clustering utilities to find areas of interest in activities
 """
 
 try:
-    from src.location_utils import LocationUtils
+    from src.lib.location_utils import LocationUtils
 except ImportError:
-    from location_utils import LocationUtils
+    from lib.location_utils import LocationUtils
 
 from typing import List, Dict, Tuple
 

@@ -14,15 +14,15 @@ from dotenv import load_dotenv
 
 try:
     # Try relative imports first (when running as a module)
-    from src.strava_api import StravaAPI
-    from src.map_generator import MapGenerator
-    from src.location_utils import LocationUtils
+    from src.lib.strava_api import StravaAPI
+    from src.lib.map_generator import MapGenerator
+    from src.lib.location_utils import LocationUtils
     from src.clustering_utils import ActivityClusterer
 except ImportError:
     # Fall back to local imports (when running directly from src/)
-    from strava_api import StravaAPI
-    from map_generator import MapGenerator
-    from location_utils import LocationUtils
+    from lib.strava_api import StravaAPI
+    from lib.map_generator import MapGenerator
+    from lib.location_utils import LocationUtils
     from clustering_utils import ActivityClusterer
 
 
