@@ -106,7 +106,7 @@ STRAVA_REFRESH_TOKEN=your_refresh_token_here
 Run the script to fetch and display GPS coordinates from your latest activity:
 
 ```bash
-python src/strava_activity.py
+python src/cli.py
 ```
 
 ### Activity Selection
@@ -425,7 +425,7 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 If you encounter errors, run with the `--debug` flag to see detailed information:
 
 ```bash
-python strava_activity.py --debug
+python src/cli.py --debug
 ```
 
 This will show you:
@@ -481,10 +481,11 @@ strava_wrapped/
 ├── setup.py               # Package setup configuration
 ├── src/                   # Source code directory
 │   ├── __init__.py        # Package initialization
+│   ├── strava_api.py      # Strava API client (StravaAPI class)
+│   ├── cli.py             # Command-line interface (main entry point)
 │   ├── clustering_utils.py # Clustering and areas of interest utilities
 │   ├── location_utils.py  # Location filtering and geocoding utilities
 │   ├── map_generator.py   # Map generation and path smoothing utilities
-│   ├── strava_activity.py # Main script
 │   ├── example_map_usage.py      # Example: Using MapGenerator programmatically
 │   └── example_multi_activity.py # Example: Creating multi-activity maps
 └── tests/                 # Test files
@@ -514,7 +515,25 @@ The GPS data from Strava can be noisy due to GPS inaccuracies. This tool provide
 
 ### Programmatic Usage
 
-You can also use the map generator in your own Python scripts:
+The codebase is now modular and organized for easy reuse. Here's how to use different modules:
+
+#### Using the Strava API Client
+
+```python
+from src.strava_api import StravaAPI
+
+# Initialize API client
+strava = StravaAPI(client_id, client_secret, refresh_token)
+
+# Fetch activities
+activities = strava.get_activities(per_page=10, activity_type='Run')
+
+# Get GPS data for an activity
+streams = strava.get_activity_streams(activity_id)
+coordinates = streams['latlng']['data']
+```
+
+#### Using the Map Generator
 
 ```python
 # If importing from project root:
@@ -543,6 +562,14 @@ generator.save_map(
     smoothing={'method': 'gaussian', 'sigma': 3.5}
 )
 ```
+
+#### Module Overview
+
+- **`strava_api.py`**: Strava API client - contains the `StravaAPI` class for all API interactions
+- **`cli.py`**: Command-line interface - main entry point for the CLI application
+- **`map_generator.py`**: Map and image generation utilities
+- **`location_utils.py`**: Location filtering and geocoding
+- **`clustering_utils.py`**: Geographic clustering for finding areas of interest
 
 ## Security Note
 
@@ -602,10 +629,10 @@ pip install -e .
 # STRAVA_REFRESH_TOKEN=...
 
 # 4. Generate a map of your latest activity
-python src/strava_activity.py --map
+python src/cli.py --map
 
 # 5. Or create a year in review with all your 2024 activities
-python src/strava_activity.py --year 2024 --map --output year_2024.html
+python src/cli.py --year 2024 --map --output year_2024.html
 
 # 6. Open the HTML file in your browser!
 ```

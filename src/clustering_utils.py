@@ -3,7 +3,11 @@
 Clustering utilities to find areas of interest in activities
 """
 
-from location_utils import LocationUtils
+try:
+    from src.location_utils import LocationUtils
+except ImportError:
+    from location_utils import LocationUtils
+
 from typing import List, Dict, Tuple
 
 

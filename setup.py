@@ -38,7 +38,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "strava-wrapped=src.strava_activity:main",
+            "strava-wrapped=src.cli:main",
         ],
     },
 )
