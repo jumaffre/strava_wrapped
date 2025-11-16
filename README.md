@@ -113,30 +113,30 @@ python src/cli.py
 
 **List your recent activities:**
 ```bash
-python strava_activity.py --list
+python src/cli.py --list
 ```
 
 **Filter by activity type:**
 ```bash
 # List only runs
-python strava_activity.py --list --type Run
+python src/cli.py --list --type Run
 
 # List only rides
-python strava_activity.py --list --type Ride
+python src/cli.py --list --type Ride
 
 # Fetch latest run and generate map
-python strava_activity.py --map --type Run
+python src/cli.py --map --type Run
 ```
 
 **Fetch specific activity by ID:**
 ```bash
-python strava_activity.py --id 1234567890 --map
+python src/cli.py --id 1234567890 --map
 ```
 
 **List more activities:**
 ```bash
 # List last 20 activities
-python strava_activity.py --list --count 20
+python src/cli.py --list --count 20
 ```
 
 ### Generate Interactive Map
@@ -145,13 +145,13 @@ Generate a beautiful interactive map with smooth GPS path:
 
 ```bash
 # Latest activity
-python strava_activity.py --map
+python src/cli.py --map
 
 # Latest run
-python strava_activity.py --map --type Run
+python src/cli.py --map --type Run
 
 # Specific activity
-python strava_activity.py --map --id 1234567890
+python src/cli.py --map --id 1234567890
 ```
 
 This creates an HTML file (`activity_map.html`) that you can open in any browser or embed in a webpage.
@@ -162,34 +162,34 @@ Create a clean, artistic static image of your route without the map background.
 
 ```bash
 # Generate image of latest activity
-python strava_activity.py --image
+python src/cli.py --image
 
 # Generate image with custom background and color
-python strava_activity.py --image --bg-color black --color "#00FF00"
+python src/cli.py --image --bg-color black --color "#00FF00"
 
 # Create poster-quality image (2000px wide)
-python strava_activity.py --image --img-width 2000 --output my_run.png
+python src/cli.py --image --img-width 2000 --output my_run.png
 
 # Year in review as a single image
-python strava_activity.py --year 2024 --type Run --image --bg-color black --img-width 1500 --output 2024_runs.png
+python src/cli.py --year 2024 --type Run --image --bg-color black --img-width 1500 --output 2024_runs.png
 
 # Use activity photo as background (toned down)
-python strava_activity.py --image --use-photo-bg --output photo_route.png
+python src/cli.py --image --use-photo-bg --output photo_route.png
 
 # Year review with photo background from most popular activity
-python strava_activity.py --year 2024 --image --use-photo-bg --img-width 1500 --output 2024_wrapped.png
+python src/cli.py --year 2024 --image --use-photo-bg --img-width 1500 --output 2024_wrapped.png
 
 # Generate square image (perfect for Instagram)
-python strava_activity.py --image --square --img-width 1080 --output instagram.png
+python src/cli.py --image --square --img-width 1080 --output instagram.png
 
 # Square year review
-python strava_activity.py --year 2024 --type Run --image --square --img-width 1500 --bg-color black --output 2024_square.png
+python src/cli.py --year 2024 --type Run --image --square --img-width 1500 --bg-color black --output 2024_square.png
 
 # Without markers (clean look)
-python strava_activity.py --image --no-markers --output clean_route.png
+python src/cli.py --image --no-markers --output clean_route.png
 
 # Custom marker size
-python strava_activity.py --image --marker-size 6 --output large_markers.png
+python src/cli.py --image --marker-size 6 --output large_markers.png
 ```
 
 Image generation options:
@@ -209,13 +209,13 @@ Combine multiple activities on a single map to visualize your training patterns,
 
 ```bash
 # Show last 5 activities on one map
-python strava_activity.py --multi 5
+python src/cli.py --multi 5
 
 # Show last 10 runs on one map
-python strava_activity.py --multi 10 --type Run
+python src/cli.py --multi 10 --type Run
 
 # Show last 20 rides with custom smoothing
-python strava_activity.py --multi 20 --type Ride --smoothing strava --output my_rides.html
+python src/cli.py --multi 20 --type Ride --smoothing strava --output my_rides.html
 ```
 
 Each activity gets a different color automatically, with a legend showing all activities. Perfect for:
@@ -230,16 +230,16 @@ Use the `--year` flag to fetch ALL activities from a specific year:
 
 ```bash
 # List all activities from 2024
-python strava_activity.py --list --year 2024
+python src/cli.py --list --year 2024
 
 # Create a map with ALL runs from 2024
-python strava_activity.py --year 2024 --type Run --map --output 2024_runs.html
+python src/cli.py --year 2024 --type Run --map --output 2024_runs.html
 
 # Create a map with ALL activities from 2025
-python strava_activity.py --year 2025 --map --output year_2025.html
+python src/cli.py --year 2025 --map --output year_2025.html
 
 # Show only rides from 2024
-python strava_activity.py --list --year 2024 --type Ride
+python src/cli.py --list --year 2024 --type Ride
 ```
 
 This automatically fetches ALL activities from the specified year (no need to specify `--multi`). Perfect for:
@@ -254,16 +254,16 @@ Use the `--city` and `--radius` flags to filter activities based on where they s
 
 ```bash
 # List activities that started within 10km of San Francisco
-python strava_activity.py --list --city "San Francisco" --radius 10
+python src/cli.py --list --city "San Francisco" --radius 10
 
 # Map all runs from 2024 that started within 5km of Paris
-python strava_activity.py --year 2024 --type Run --map --city "Paris, France" --radius 5
+python src/cli.py --year 2024 --type Run --map --city "Paris, France" --radius 5
 
 # Show last 20 rides that started within 15km of London
-python strava_activity.py --multi 20 --type Ride --city "London, UK" --radius 15
+python src/cli.py --multi 20 --type Ride --city "London, UK" --radius 15
 
 # List activities near a specific location with custom count
-python strava_activity.py --list --city "New York" --radius 20 --count 30
+python src/cli.py --list --city "New York" --radius 20 --count 30
 ```
 
 **How it works:**
@@ -291,7 +291,7 @@ Automatically find geographic clusters where you have many activities - perfect 
 **🎯 Quick Auto-Discover (One Command!):**
 ```bash
 # Automatically find and visualize your main training area
-python strava_activity.py --auto-discover --year 2024 --type Run
+python src/cli.py --auto-discover --year 2024 --type Run
 
 # That's it! This will:
 # - Find all clusters in your 2024 runs
@@ -303,16 +303,16 @@ python strava_activity.py --auto-discover --year 2024 --type Run
 **Manual Clustering (More Control):**
 ```bash
 # Discover clusters in your year's activities
-python strava_activity.py --year 2024 --type Run --find-clusters
+python src/cli.py --year 2024 --type Run --find-clusters
 
 # Find clusters and visualize the largest one
-python strava_activity.py --year 2024 --type Run --find-clusters --image --square --use-map-bg --no-markers
+python src/cli.py --year 2024 --type Run --find-clusters --image --square --use-map-bg --no-markers
 
 # Customize clustering parameters
-python strava_activity.py --multi 50 --find-clusters --cluster-radius 3 --min-cluster-size 5
+python src/cli.py --multi 50 --find-clusters --cluster-radius 3 --min-cluster-size 5
 
 # Visualize second largest cluster
-python strava_activity.py --year 2024 --find-clusters --cluster-id 1 --image --square
+python src/cli.py --year 2024 --find-clusters --cluster-id 1 --image --square
 ```
 
 **How it works:**
@@ -338,36 +338,36 @@ Perfect for:
 **Choose smoothing level:**
 ```bash
 # No smoothing (raw GPS data)
-python strava_activity.py --map --smoothing none
+python src/cli.py --map --smoothing none
 
 # Light smoothing
-python strava_activity.py --map --smoothing light
+python src/cli.py --map --smoothing light
 
 # Medium smoothing (default, good for most activities)
-python strava_activity.py --map --smoothing medium
+python src/cli.py --map --smoothing medium
 
 # Heavy smoothing (very smooth, good for noisy GPS)
-python strava_activity.py --map --smoothing heavy
+python src/cli.py --map --smoothing heavy
 
 # Strava-style smoothing (spline interpolation)
-python strava_activity.py --map --smoothing strava
+python src/cli.py --map --smoothing strava
 ```
 
 **Customize appearance:**
 ```bash
 # Custom color and line width
-python strava_activity.py --map --color "#FF5733" --width 5
+python src/cli.py --map --color "#FF5733" --width 5
 
 # Save to specific file
-python strava_activity.py --map --output my_run.html
+python src/cli.py --map --output my_run.html
 
 # Combine options
-python strava_activity.py --map --smoothing heavy --color "#00FF00" --width 4 --output smooth_run.html
+python src/cli.py --map --smoothing heavy --color "#00FF00" --width 4 --output smooth_run.html
 ```
 
 **Compare all smoothing methods:**
 ```bash
-python strava_activity.py --compare
+python src/cli.py --compare
 ```
 
 This generates a single map showing all smoothing levels overlaid, so you can see the differences.
@@ -592,7 +592,7 @@ If you get a 401 error:
 
 1. **Run with debug mode first:**
    ```bash
-   python strava_activity.py --debug
+   python src/cli.py --debug
    ```
 
 2. **Common causes:**
@@ -650,165 +650,165 @@ python src/cli.py --year 2024 --map --output year_2024.html
 
 ### Example 1: List your recent activities
 ```bash
-python strava_activity.py --list
+python src/cli.py --list
 ```
 
 ### Example 2: List only runs
 ```bash
-python strava_activity.py --list --type Run --count 20
+python src/cli.py --list --type Run --count 20
 ```
 
 ### Example 3: Generate map of latest run
 ```bash
-python strava_activity.py --map --type Run
+python src/cli.py --map --type Run
 ```
 
 ### Example 4: Generate map of specific activity
 ```bash
-python strava_activity.py --map --id 1234567890
+python src/cli.py --map --id 1234567890
 ```
 
 ### Example 5: Custom styled map of latest ride
 ```bash
-python strava_activity.py --map --type Ride --smoothing strava --color "#0066CC" --width 5 --output my_ride.html
+python src/cli.py --map --type Ride --smoothing strava --color "#0066CC" --width 5 --output my_ride.html
 ```
 
 ### Example 6: Compare smoothing algorithms
 ```bash
-python strava_activity.py --compare --type Run --output smoothing_test.html
+python src/cli.py --compare --type Run --output smoothing_test.html
 ```
 
 ### Example 7: No smoothing (raw GPS)
 ```bash
-python strava_activity.py --map --smoothing none --output raw_gps.html
+python src/cli.py --map --smoothing none --output raw_gps.html
 ```
 
 ### Example 8: Aggregate last 5 activities
 ```bash
-python strava_activity.py --multi 5
+python src/cli.py --multi 5
 ```
 
 ### Example 9: Create a map of all runs this month
 ```bash
 # Assuming you have ~20 runs
-python strava_activity.py --multi 20 --type Run --output runs_this_month.html
+python src/cli.py --multi 20 --type Run --output runs_this_month.html
 ```
 
 ### Example 10: Year in review - All activities from 2024
 ```bash
 # Fetch ALL activities from 2024 and create a map
-python strava_activity.py --year 2024 --map --output year_2024.html
+python src/cli.py --year 2024 --map --output year_2024.html
 ```
 
 ### Example 11: All runs from 2025
 ```bash
 # Create a map with all your runs from 2025
-python strava_activity.py --year 2025 --type Run --map --output 2025_runs.html
+python src/cli.py --year 2025 --type Run --map --output 2025_runs.html
 ```
 
 ### Example 12: Compare routes in same area
 ```bash
 # Get your last 10 runs to see route variations
-python strava_activity.py --multi 10 --type Run --smoothing strava --output my_running_routes.html
+python src/cli.py --multi 10 --type Run --smoothing strava --output my_running_routes.html
 ```
 
 ### Example 13: List all activities from a year
 ```bash
 # List all activities from 2024
-python strava_activity.py --list --year 2024
+python src/cli.py --list --year 2024
 
 # List only runs from 2023
-python strava_activity.py --list --year 2023 --type Run
+python src/cli.py --list --year 2023 --type Run
 ```
 
 ### Example 14: Filter by location
 ```bash
 # List activities that started within 10km of San Francisco
-python strava_activity.py --list --city "San Francisco" --radius 10
+python src/cli.py --list --city "San Francisco" --radius 10
 
 # Map all runs from 2024 that started in Paris (5km radius)
-python strava_activity.py --year 2024 --type Run --map --city "Paris, France" --radius 5 --output paris_runs_2024.html
+python src/cli.py --year 2024 --type Run --map --city "Paris, France" --radius 5 --output paris_runs_2024.html
 
 # Show last 15 rides that started within 20km of home
-python strava_activity.py --multi 15 --type Ride --city "Your City" --radius 20
+python src/cli.py --multi 15 --type Ride --city "Your City" --radius 20
 ```
 
 ### Example 15: Combine multiple filters
 ```bash
 # All runs from 2024 that started within 10km of New York
-python strava_activity.py --year 2024 --type Run --city "New York, NY" --radius 10 --map --output nyc_runs_2024.html
+python src/cli.py --year 2024 --type Run --city "New York, NY" --radius 10 --map --output nyc_runs_2024.html
 
 # List recent activities near a specific location with debug info
-python strava_activity.py --list --city "London, UK" --radius 15 --count 20 --debug
+python src/cli.py --list --city "London, UK" --radius 15 --count 20 --debug
 ```
 
 ### Example 16: Generate static images
 ```bash
 # Create image of latest run
-python strava_activity.py --image --type Run
+python src/cli.py --image --type Run
 
 # Black background with bright path (great for posters!)
-python strava_activity.py --image --bg-color black --color "#00FF00" --output my_run.png
+python src/cli.py --image --bg-color black --color "#00FF00" --output my_run.png
 
 # High resolution year in review image
-python strava_activity.py --year 2024 --type Run --image --img-width 2000 --bg-color black --output 2024_runs_poster.png
+python src/cli.py --year 2024 --type Run --image --img-width 2000 --bg-color black --output 2024_runs_poster.png
 
 # Multi-activity image with custom styling
-python strava_activity.py --multi 20 --image --bg-color "#1a1a1a" --img-width 1500 --output training_routes.png
+python src/cli.py --multi 20 --image --bg-color "#1a1a1a" --img-width 1500 --output training_routes.png
 
 # Square image for Instagram (1080x1080)
-python strava_activity.py --image --square --img-width 1080 --output instagram.png
+python src/cli.py --image --square --img-width 1080 --output instagram.png
 
 # Square year review
-python strava_activity.py --year 2024 --type Run --image --square --img-width 1500 --bg-color black --output 2024_square.png
+python src/cli.py --year 2024 --type Run --image --square --img-width 1500 --bg-color black --output 2024_square.png
 
 # Clean look without markers
-python strava_activity.py --year 2024 --image --no-markers --bg-color black --output clean_2024.png
+python src/cli.py --year 2024 --image --no-markers --bg-color black --output clean_2024.png
 
 # Custom marker size
-python strava_activity.py --image --marker-size 6 --output large_markers.png
+python src/cli.py --image --marker-size 6 --output large_markers.png
 
 # Tiny markers for minimal look
-python strava_activity.py --multi 20 --image --marker-size 2 --square --img-width 1080 --output minimal.png
+python src/cli.py --multi 20 --image --marker-size 2 --square --img-width 1080 --output minimal.png
 
 # With minimal map background (NO LABELS, accurate geography)
-python strava_activity.py --year 2024 --type Run --image --use-map-bg --square --no-markers --img-width 1500 --output 2024_with_map.png
+python src/cli.py --year 2024 --type Run --image --use-map-bg --square --no-markers --img-width 1500 --output 2024_with_map.png
 
 # City activities with map background
-python strava_activity.py --city "London, UK" --radius 20 --year 2025 --type Run --image --use-map-bg --square --no-markers --output london_runs.png
+python src/cli.py --city "London, UK" --radius 20 --year 2025 --type Run --image --use-map-bg --square --no-markers --output london_runs.png
 
 # All activities in Strava orange (instead of multi-color)
-python strava_activity.py --year 2024 --type Run --image --strava-color --square --use-map-bg --no-markers --output 2024_orange.png
+python src/cli.py --year 2024 --type Run --image --strava-color --square --use-map-bg --no-markers --output 2024_orange.png
 ```
 
 ### Example 17: Auto-discover your main training area (ONE COMMAND!)
 ```bash
 # 🎯 The easiest way - automatically find and visualize your main training area
-python strava_activity.py --auto-discover --year 2024 --type Run
+python src/cli.py --auto-discover --year 2024 --type Run
 
 # For cycling
-python strava_activity.py --auto-discover --year 2024 --type Ride
+python src/cli.py --auto-discover --year 2024 --type Ride
 
 # With custom output name
-python strava_activity.py --auto-discover --year 2024 --type Run --output my_home_base.png
+python src/cli.py --auto-discover --year 2024 --type Run --output my_home_base.png
 
 # Customize clustering parameters
-python strava_activity.py --auto-discover --year 2024 --type Run --cluster-radius 50 --min-cluster-size 20
+python src/cli.py --auto-discover --year 2024 --type Run --cluster-radius 50 --min-cluster-size 20
 ```
 
 ### Example 18: Manual cluster discovery (more control)
 ```bash
 # Find all your training hotspots from 2024
-python strava_activity.py --year 2024 --type Run --find-clusters
+python src/cli.py --year 2024 --type Run --find-clusters
 
 # Visualize your main training area (largest cluster)
-python strava_activity.py --year 2024 --type Run --find-clusters --image --square --use-map-bg --no-markers --output main_area.png
+python src/cli.py --year 2024 --type Run --find-clusters --image --square --use-map-bg --no-markers --output main_area.png
 
 # See your second most frequent area
-python strava_activity.py --year 2024 --find-clusters --cluster-id 1 --image --square
+python src/cli.py --year 2024 --find-clusters --cluster-id 1 --image --square
 
 # Fine-tune clustering (smaller radius, more strict)
-python strava_activity.py --multi 100 --find-clusters --cluster-radius 3 --min-cluster-size 10 --image
+python src/cli.py --multi 100 --find-clusters --cluster-radius 3 --min-cluster-size 10 --image
 ```
 
 ## Common Activity Types
