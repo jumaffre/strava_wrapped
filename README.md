@@ -202,6 +202,7 @@ Image generation options:
 - `--square` - Generate square image (1:1 aspect ratio) - perfect for Instagram/social media
 - `--marker-size SIZE` - Size of start/end markers in points (default: 20 for single, 15 for multi)
 - `--no-markers` - Hide start/end markers completely
+- `--border` - Add white border (3% on sides/top, 15% on bottom) - perfect for framing/printing
 
 ### Aggregate Multiple Activities on One Map
 
@@ -814,6 +815,12 @@ python src/cli.py --city "London, UK" --radius 20 --year 2025 --type Run --image
 
 # All activities in Strava orange (instead of multi-color)
 python src/cli.py --year 2024 --type Run --image --strava-color --square --use-map-bg --no-markers --output 2024_orange.png
+
+# Add white border for framing (perfect for printing/posters)
+python src/cli.py --year 2024 --type Run --image --square --border --img-width 1500 --output 2024_framed.png
+
+# Border with map background
+python src/cli.py --year 2024 --type Run --image --use-map-bg --square --no-markers --border --output 2024_bordered_map.png
 ```
 
 ### Example 17: Auto-discover your main training area (ONE COMMAND!)
@@ -847,7 +854,25 @@ python src/cli.py --city "Paris, France" --year 2024 --type Ride --stats
 python src/cli.py --year 2024 --type Run --stats --map --output 2024_runs.html
 ```
 
-### Example 19: Manual cluster discovery (more control)
+### Example 19: Add borders for printing/framing
+
+```bash
+# Add white border perfect for framing
+python src/cli.py --year 2024 --type Run --image --square --border --img-width 1500 --output 2024_framed.png
+
+# Border with map background (great for wall art!)
+python src/cli.py --year 2024 --type Run --image --use-map-bg --square --no-markers --border --bg-color white --output wall_art.png
+
+# Border with black background
+python src/cli.py --year 2024 --image --border --bg-color black --square --img-width 1200 --output dark_border.png
+```
+
+The border adds:
+- 3% padding on left, right, and top
+- 15% padding on bottom (more space for a "museum style" look)
+- White color (perfect for framing and printing)
+
+### Example 20: Manual cluster discovery (more control)
 ```bash
 # Find all your training hotspots from 2024
 python src/cli.py --year 2024 --type Run --find-clusters

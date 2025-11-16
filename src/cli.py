@@ -390,6 +390,8 @@ def main():
                           help='Hide start/end markers on images')
     map_group.add_argument('--use-map-bg', action='store_true',
                           help='Use minimal OpenStreetMap as background (accurate geography, muted colors, no labels)')
+    map_group.add_argument('--border', action='store_true',
+                          help='Add white border to image (3%% on sides/top, 15%% on bottom) - perfect for framing')
     
     # Statistics options
     parser.add_argument('--stats', action='store_true',
@@ -781,7 +783,8 @@ def main():
                 force_square=args.square,
                 marker_size=marker_size,
                 use_map_background=args.use_map_bg,
-                single_color=single_color
+                single_color=single_color,
+                add_border=args.border
             )
             
             print(f"\n✓ Multi-activity image saved!")
@@ -919,7 +922,8 @@ def main():
                     force_square=args.square,
                     show_markers=show_markers,
                     marker_size=marker_size,
-                    use_map_background=args.use_map_bg
+                    use_map_background=args.use_map_bg,
+                    add_border=args.border
                 )
                 
                 print(f"\n✓ Image saved!")
@@ -957,7 +961,8 @@ def main():
                 force_square=args.square,
                 show_markers=show_markers,
                 marker_size=marker_size,
-                use_map_background=args.use_map_bg
+                use_map_background=args.use_map_bg,
+                add_border=args.border
             )
             
             print(f"\n✓ Image saved!")
