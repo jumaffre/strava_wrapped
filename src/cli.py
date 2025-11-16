@@ -235,6 +235,60 @@ def format_time(seconds):
         return f"{secs}s"
 
 
+def prepare_stats_for_image(stats, activities, strava, year=None, activity_type=None, debug=False):
+    """
+    Prepare statistics data for display on image border
+    
+    Args:
+        stats: Statistics dict from calculate_statistics()
+        activities: List of activities
+        strava: StravaAPI instance
+        year: Year filter if specified
+        activity_type: Activity type filter if specified
+        debug: Enable debug output
+    
+    Returns:
+        Dict with formatted statistics for image display
+    """
+    if not stats:
+        return None
+    
+    # Get athlete profile
+    athlete = strava.get_athlete_profile()
+    first_name = athlete.get('firstname', 'My') if athlete else 'My'
+    
+    # Build title
+    if year and activity_type:
+        title = f"{first_name}'s {year} {activity_type} Wrap"
+    elif year:
+        title = f"{first_name}'s {year} Strava Wrap"
+    elif activity_type:
+        title = f"{first_name}'s {activity_type} Wrap"
+    else:
+        title = f"{first_name}'s Strava Wrap"
+    
+    # Calculate average pace based on primary activity type
+    avg_pace = "N/A"
+    if stats['activity_types']:
+        # Get the most common activity type
+        primary_type = max(stats['activity_types'].items(), key=lambda x: x[1]['count'])[0]
+        type_data = stats['activity_types'][primary_type]
+        avg_pace = format_pace(type_data['distance'], type_data['time'], primary_type)
+    
+    # Total kudos
+    total_kudos = sum(activity.get('kudos_count', 0) for activity in activities)
+    
+    return {
+        'title': title,
+        'activities': stats['count'],
+        'distance': stats['total_distance'] / 1000,  # Convert to km
+        'elevation': stats['total_elevation_gain'],
+        'time': stats['total_moving_time'] / 3600,  # Convert to hours
+        'pace': avg_pace,
+        'kudos': total_kudos
+    }
+
+
 def display_statistics(stats, activities, strava, debug=False):
     """
     Display formatted statistics
@@ -391,7 +445,7 @@ def main():
     map_group.add_argument('--use-map-bg', action='store_true',
                           help='Use minimal OpenStreetMap as background (accurate geography, muted colors, no labels)')
     map_group.add_argument('--border', action='store_true',
-                          help='Add white border to image (3%% on sides/top, 15%% on bottom) - perfect for framing')
+                          help='Add white border to image (3%% on sides/top, 20%% on bottom) - perfect for framing')
     
     # Statistics options
     parser.add_argument('--stats', action='store_true',
@@ -712,7 +766,11 @@ def main():
         # Display statistics if requested (after all filtering is done)
         if args.stats:
             stats = calculate_statistics(activities_data)
-            display_statistics(stats, activities_data, strava, debug=args.debug)
+            
+            # Only display terminal stats if not generating an image with border
+            # (to avoid rate limiting when fetching detailed activity data)
+            if not (args.image and args.border):
+                display_statistics(stats, activities_data, strava, debug=args.debug)
             
             # If only stats were requested (no map/image), exit here
             if not (args.map or args.image or args.compare):
@@ -770,6 +828,13 @@ def main():
             # Set single color if requested
             single_color = args.color if args.strava_color else None
             
+            # Prepare stats for image border if both stats and border are enabled
+            image_stats_data = None
+            if args.stats and args.border:
+                stats = calculate_statistics(activities_data)
+                image_stats_data = prepare_stats_for_image(stats, activities_data, strava, 
+                                                           year=args.year, activity_type=args.type)
+            
             # Generate static image
             MapGenerator.create_multi_activity_image(
                 activities_data,
@@ -784,7 +849,8 @@ def main():
                 marker_size=marker_size,
                 use_map_background=args.use_map_bg,
                 single_color=single_color,
-                add_border=args.border
+                add_border=args.border,
+                stats_data=image_stats_data
             )
             
             print(f"\n✓ Multi-activity image saved!")
@@ -910,6 +976,8 @@ def main():
                 show_markers = not args.no_markers
                 marker_size = args.marker_size if args.marker_size is not None else 20
                 
+                # Note: Single activity in compare mode doesn't support stats on border
+                
                 generator = MapGenerator(coordinates, activity_name)
                 generator.create_image(
                     output_file=output_file,
@@ -948,6 +1016,9 @@ def main():
             # Determine marker settings
             show_markers = not args.no_markers
             marker_size = args.marker_size if args.marker_size is not None else 4
+            
+            # Note: Single activity mode doesn't show stats on border
+            # (stats feature is designed for multi-activity mode)
             
             generator = MapGenerator(coordinates, activity_name)
             generator.create_image(

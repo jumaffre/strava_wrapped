@@ -202,7 +202,7 @@ Image generation options:
 - `--square` - Generate square image (1:1 aspect ratio) - perfect for Instagram/social media
 - `--marker-size SIZE` - Size of start/end markers in points (default: 20 for single, 15 for multi)
 - `--no-markers` - Hide start/end markers completely
-- `--border` - Add white border (3% on sides/top, 15% on bottom) - perfect for framing/printing
+- `--border` - Add white border (3% on sides/top, 20% on bottom) - perfect for framing/printing
 
 ### Aggregate Multiple Activities on One Map
 
@@ -278,6 +278,7 @@ python src/cli.py --year 2024 --type Run --stats --map --output 2024_runs.html
 - Works with all filtering options (`--year`, `--type`, `--city`, `--multi`)
 - Use `--stats` alone to see statistics without generating maps
 - Combine with `--map` or `--image` to see stats and create visualizations
+- **✨ NEW**: Use `--stats` with `--border` on images to display stats beautifully on the border!
 
 ### Filter Activities by Location
 
@@ -429,6 +430,7 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 **Statistics:**
 ```
 --stats               Display statistics for filtered activities (distance, elevation, time, pace, participants)
+                      When combined with --border and --image, stats are written on the image border
 ```
 
 **Map Generation:**
@@ -852,6 +854,9 @@ python src/cli.py --city "Paris, France" --year 2024 --type Ride --stats
 
 # View stats and generate map
 python src/cli.py --year 2024 --type Run --stats --map --output 2024_runs.html
+
+# Create a beautiful poster with stats on the border!
+python src/cli.py --year 2024 --type Run --image --square --border --stats --img-width 1500 --output 2024_poster.png
 ```
 
 ### Example 19: Add borders for printing/framing
@@ -865,12 +870,32 @@ python src/cli.py --year 2024 --type Run --image --use-map-bg --square --no-mark
 
 # Border with black background
 python src/cli.py --year 2024 --image --border --bg-color black --square --img-width 1200 --output dark_border.png
+
+# Border with statistics overlay (auto-generated title and stats!)
+python src/cli.py --year 2024 --type Run --image --square --border --stats --img-width 1500 --output 2024_wrap.png
 ```
 
 The border adds:
 - 3% padding on left, right, and top
-- 15% padding on bottom (more space for a "museum style" look)
+- 20% padding on bottom (generous space for a "museum style" look)
 - White color (perfect for framing and printing)
+
+When combined with `--stats`, the bottom border displays:
+- Title with your name and year/activity type (Title Case)
+- Two rows of statistics in a clean grid layout
+- Bold numbers with units (e.g., "55km", "12hrs") - no space for cleaner look
+- Lowercase labels (e.g., "Distance", "Time", "Pace")
+- Elegant Helvetica typography with generous spacing and padding
+
+**✨ NEW: Statistics on Border**  
+When you combine `--border` and `--stats`, the statistics are beautifully displayed on the bottom border:
+- **Title**: "Julien's 2024 Run Wrap" (Title Case, auto-generated from your Strava profile)
+- **Elegant Layout**: Two rows of three statistics each
+  - Row 1: Activities | Kudos | Distance
+  - Row 2: Time | Elevation | Pace
+- **Modern Typography**: Helvetica font with bold numbers (including units, no spaces) and lowercase labels
+- **Stylish Design**: Generous spacing, proper sizing, softer colors, more bottom padding
+- Perfect for sharing or printing as a "year in review" poster!
 
 ### Example 20: Manual cluster discovery (more control)
 ```bash
