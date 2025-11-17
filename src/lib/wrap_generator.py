@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from .map_generator import MapGenerator
 from .location_utils import LocationUtils
-from ..clustering_utils import ActivityClusterer
+from .clustering_utils import ActivityClusterer
 
 
 @dataclass

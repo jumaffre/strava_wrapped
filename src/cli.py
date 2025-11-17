@@ -25,7 +25,7 @@ from src.lib.wrap_generator import (
     prepare_stats_for_image,
     get_year_timestamps,
 )
-from src.clustering_utils import ActivityClusterer
+from src.lib.clustering_utils import ActivityClusterer
 
 
 def list_activities(strava, activity_type=None, count=10, year=None):

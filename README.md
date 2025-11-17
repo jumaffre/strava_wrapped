@@ -520,12 +520,15 @@ strava_wrapped/
 ├── src/                   # Source code directory
 │   ├── __init__.py        # Package initialization
 │   ├── cli.py             # Command-line interface (main entry point)
-│   ├── clustering_utils.py # Clustering and areas of interest utilities
 │   ├── lib/               # Core library modules
 │   │   ├── __init__.py
 │   │   ├── strava_api.py  # Strava API client (StravaAPI class)
 │   │   ├── map_generator.py # Map generation and path smoothing
-│   │   └── location_utils.py # Location filtering and geocoding
+│   │   ├── location_utils.py # Location filtering and geocoding
+│   │   ├── clustering_utils.py # Clustering and areas of interest utilities
+│   │   └── wrap_generator.py # High-level wrap generation functions
+│   ├── app/               # Flask web application
+│   │   └── __init__.py    # Web app entry point
 │   └── examples/          # Example scripts
 │       ├── __init__.py
 │       ├── example_map_usage.py      # Using MapGenerator programmatically
@@ -610,9 +613,11 @@ generator.save_map(
 - **`strava_api.py`**: Strava API client - contains the `StravaAPI` class for all API interactions
 - **`map_generator.py`**: Map and image generation utilities
 - **`location_utils.py`**: Location filtering and geocoding
-
-**Utilities:**
 - **`clustering_utils.py`**: Geographic clustering for finding areas of interest
+- **`wrap_generator.py`**: High-level functions for generating wrap images programmatically
+
+**Web Application (src/app/):**
+- **`__init__.py`**: Flask web application for generating wraps via web interface
 
 **Examples (src/examples/):**
 - **`example_map_usage.py`**: Shows how to use MapGenerator programmatically

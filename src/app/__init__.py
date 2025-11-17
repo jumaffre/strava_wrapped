@@ -22,8 +22,8 @@ from src.lib.wrap_generator import (
 # Load environment variables
 load_dotenv()
 
-# Get project root directory (parent of src/)
-PROJECT_ROOT = Path(__file__).parent.parent
+# Get project root directory (parent of src/app/)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 TEMPLATES_DIR = PROJECT_ROOT / 'templates'
 STATIC_DIR = PROJECT_ROOT / 'static'
 
