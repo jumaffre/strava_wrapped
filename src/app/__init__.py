@@ -75,7 +75,6 @@ def generate():
         img_width = int(request.form.get('img_width', 5000))
         background_color = request.form.get('background_color', 'white')
         use_map_bg = request.form.get('use_map_bg') == 'on'
-        use_photo_bg = request.form.get('use_photo_bg') == 'on'
         show_markers = request.form.get('show_markers', 'on') == 'on'
         square = request.form.get('square') == 'on'
         border = request.form.get('border') == 'on'
@@ -93,7 +92,6 @@ def generate():
             img_width=img_width,
             background_color=background_color,
             use_map_background=use_map_bg,
-            use_photo_background=use_photo_bg,
             show_markers=show_markers,
             square=square,
             border=border,

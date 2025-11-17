@@ -267,8 +267,6 @@ def main():
                           help='Background color for static images (default: white). Examples: white, black, #F5F5F5')
     map_group.add_argument('--img-width', type=int, default=5000,
                           help='Width of static image in pixels (default: 5000)')
-    map_group.add_argument('--use-photo-bg', action='store_true',
-                          help='Use highlight photo from most popular activity (by kudos) as background for images')
     map_group.add_argument('--square', action='store_true',
                           help='Generate square image (1:1 aspect ratio) - perfect for Instagram/social media')
     map_group.add_argument('--marker-size', type=float, default=None,
@@ -469,7 +467,6 @@ def main():
                 img_width=args.img_width,
                 background_color=args.bg_color,
                 use_map_background=args.use_map_bg,
-                use_photo_background=args.use_photo_bg,
                 show_markers=not args.no_markers,
                 marker_size=args.marker_size,
                 square=args.square,
@@ -668,33 +665,6 @@ def main():
         # Determine line width (default: 10 for images, 3 for maps)
         line_width = args.width if args.width != 3 else (10 if args.image else 3)
         
-        # Get background photo if requested (uses filtered activities only!)
-        background_photo_url = None
-        if args.use_photo_bg and args.image:
-            print("\nFetching background photo from most popular filtered activity...")
-            # Use activities_data directly - it already contains only filtered activities with kudos_count
-            if activities_data:
-                most_popular = strava.find_most_popular_activity(activities_data)
-                if most_popular:
-                    photos = strava.get_activity_photos(most_popular['id'])
-                    if photos:
-                        # Get the first photo (usually the highlight)
-                        for photo in photos:
-                            if 'urls' in photo and photo['urls']:
-                                # Use the largest available size
-                                background_photo_url = photo['urls'].get('2048') or photo['urls'].get('1024') or photo['urls'].get('600')
-                                if background_photo_url:
-                                    print(f"  ✓ Using photo from '{most_popular.get('name', 'activity')}' ({most_popular.get('kudos_count', 0)} kudos)")
-                                    break
-                        if not background_photo_url:
-                            print("  ⚠️  No usable photos found in filtered activities, using solid background")
-                    else:
-                        print("  ⚠️  Most popular activity has no photos, using solid background")
-                else:
-                    print("  ⚠️  Could not determine most popular activity")
-            else:
-                print("  ⚠️  No filtered activities available for photo selection")
-        
         # Generate multi-activity map or image
         print(f"\n{'='*60}")
         if args.image:
@@ -727,7 +697,6 @@ def main():
                 width_px=args.img_width,
                 background_color=args.bg_color,
                 show_markers=show_markers,
-                background_image_url=background_photo_url,
                 force_square=args.square,
                 marker_size=marker_size,
                 use_map_background=args.use_map_bg,
@@ -823,25 +792,6 @@ def main():
         # Determine line width (default: 10 for images, 3 for maps)
         line_width = args.width if args.width != 3 else (10 if args.image else 3)
         
-        # Get background photo if requested
-        background_photo_url = None
-        if args.use_photo_bg and args.image:
-            print("\nFetching background photo from activity...")
-            photos = strava.get_activity_photos(activity_id)
-            if photos:
-                # Get the first photo (usually the highlight)
-                for photo in photos:
-                    if 'urls' in photo and photo['urls']:
-                        # Use the largest available size
-                        background_photo_url = photo['urls'].get('2048') or photo['urls'].get('1024') or photo['urls'].get('600')
-                        if background_photo_url:
-                            print(f"  Using photo from this activity")
-                            break
-                if not background_photo_url:
-                    print("  ⚠️  No usable photos found, using solid background")
-            else:
-                print("  ⚠️  Activity has no photos, using solid background")
-        
         print(f"\n{'='*60}")
         if args.image:
             print("Generating Image")
@@ -869,7 +819,6 @@ def main():
                     line_width=line_width,
                     width_px=args.img_width,
                     background_color=args.bg_color,
-                    background_image_url=background_photo_url,
                     force_square=args.square,
                     show_markers=show_markers,
                     marker_size=marker_size,
@@ -911,7 +860,6 @@ def main():
                 line_width=line_width,
                 width_px=args.img_width,
                 background_color=args.bg_color,
-                background_image_url=background_photo_url,
                 force_square=args.square,
                 show_markers=show_markers,
                 marker_size=marker_size,
@@ -923,10 +871,9 @@ def main():
             print(f"  File: {output_file}")
             if args.square:
                 print(f"  Square format: {args.img_width}x{args.img_width}px")
-            if not background_photo_url and not args.use_map_bg:
+            if not args.use_map_bg:
                 print(f"\n💡 Tip: Try different backgrounds:")
                 print(f"   --bg-color white/black/<hex>")
-                print(f"   --use-photo-bg for activity photos")
                 print(f"   --use-map-bg for minimal geographic map")
         else:
             # Generate single map

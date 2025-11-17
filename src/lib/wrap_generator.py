@@ -20,7 +20,6 @@ class WrapImageStyle:
     img_width: int = 5000
     background_color: str = "white"
     use_map_background: bool = False
-    use_photo_background: bool = False
     show_markers: bool = True
     marker_size: Optional[int] = None
     square: bool = False
@@ -304,22 +303,6 @@ def generate_wrap_image(strava, request: WrapGenerationRequest) -> WrapGeneratio
     elif style.strava_color:
         single_color = "#FC4C02"
 
-    background_photo_url = None
-    if style.use_photo_background and stats_activities:
-        most_popular = strava.find_most_popular_activity(stats_activities)
-        if most_popular:
-            photos = strava.get_activity_photos(most_popular["id"])
-            if photos:
-                for photo in photos:
-                    if "urls" in photo and photo["urls"]:
-                        background_photo_url = (
-                            photo["urls"].get("2048")
-                            or photo["urls"].get("1024")
-                            or photo["urls"].get("600")
-                        )
-                        if background_photo_url:
-                            break
-
     stats_for_border = None
     if style.border and style.include_stats_on_border and request.include_stats:
         stats_for_border = prepare_stats_for_image(
@@ -334,7 +317,6 @@ def generate_wrap_image(strava, request: WrapGenerationRequest) -> WrapGeneratio
         width_px=style.img_width,
         background_color=style.background_color,
         show_markers=style.show_markers,
-        background_image_url=background_photo_url,
         force_square=style.square,
         marker_size=style.marker_size if style.marker_size is not None else 15,
         use_map_background=style.use_map_background,

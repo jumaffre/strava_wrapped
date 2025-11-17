@@ -173,12 +173,6 @@ python cli.py --image --img-width 2000 --output my_run.png
 # Year in review as a single image
 python cli.py --year 2024 --type Run --image --bg-color black --img-width 1500 --output 2024_runs.png
 
-# Use activity photo as background (toned down)
-python cli.py --image --use-photo-bg --output photo_route.png
-
-# Year review with photo background from most popular activity
-python cli.py --year 2024 --image --use-photo-bg --img-width 1500 --output 2024_wrapped.png
-
 # Generate square image (perfect for Instagram)
 python cli.py --image --square --img-width 1080 --output instagram.png
 
@@ -197,7 +191,6 @@ Image generation options:
 - `--bg-color COLOR` - Background color (white, black, or hex like #F5F5F5)
 - `--img-width PIXELS` - Width in pixels (default: 5000)
 - `--output FILE.png` - Output filename
-- `--use-photo-bg` - Use highlight photo from most popular activity (by kudos) as background
 - `--use-map-bg` - Use minimal OpenStreetMap as background (NO LABELS, muted colors, accurate geography)
 - `--square` - Generate square image (1:1 aspect ratio) - perfect for Instagram/social media
 - `--marker-size SIZE` - Size of start/end markers in points (default: 20 for single, 15 for multi)
@@ -446,7 +439,6 @@ This generates a single map showing all smoothing levels overlaid, so you can se
 --compare             Generate comparison map showing all smoothing levels
 --bg-color COLOR      Background color for images (default: white)
 --img-width PIXELS    Width of image in pixels (default: 5000)
---use-photo-bg        Use highlight photo from most popular activity as background (images only)
 --use-map-bg          Use minimal OpenStreetMap as background (NO LABELS, muted colors, accurate)
 --square              Generate square image (1:1 aspect ratio) - perfect for social media
 --marker-size SIZE    Size of start/end markers in points (default: 20 for single, 15 for multi)
