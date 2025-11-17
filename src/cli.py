@@ -17,29 +17,33 @@ try:
     from src.lib.strava_api import StravaAPI
     from src.lib.map_generator import MapGenerator
     from src.lib.location_utils import LocationUtils
+    from src.lib.wrap_generator import (
+        WrapGenerationRequest,
+        WrapImageStyle,
+        generate_wrap_image,
+        calculate_statistics,
+        format_pace,
+        format_time,
+        prepare_stats_for_image,
+        get_year_timestamps,
+    )
     from src.clustering_utils import ActivityClusterer
 except ImportError:
     # Fall back to local imports (when running directly from src/)
     from lib.strava_api import StravaAPI
     from lib.map_generator import MapGenerator
     from lib.location_utils import LocationUtils
+    from lib.wrap_generator import (
+        WrapGenerationRequest,
+        WrapImageStyle,
+        generate_wrap_image,
+        calculate_statistics,
+        format_pace,
+        format_time,
+        prepare_stats_for_image,
+        get_year_timestamps,
+    )
     from clustering_utils import ActivityClusterer
-
-
-def get_year_timestamps(year):
-    """
-    Get start and end timestamps for a given year
-    
-    Args:
-        year: Year (e.g., 2024, 2025)
-    
-    Returns:
-        Tuple of (start_timestamp, end_timestamp) in epoch seconds
-    """
-    start_date = datetime(year, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-    end_date = datetime(year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-    
-    return int(start_date.timestamp()), int(end_date.timestamp())
 
 
 def list_activities(strava, activity_type=None, count=10, year=None):
@@ -134,159 +138,6 @@ def display_gps_coordinates(streams):
         for i, coord in enumerate(coordinates[5:], 6):
             lat, lng = coord
             print(f"  {i}. Latitude: {lat:.6f}, Longitude: {lng:.6f}")
-
-
-def calculate_statistics(activities):
-    """
-    Calculate statistics from a list of activities
-    
-    Args:
-        activities: List of activity dicts from Strava API
-    
-    Returns:
-        Dict with calculated statistics
-    """
-    if not activities:
-        return None
-    
-    total_distance = 0  # meters
-    total_elevation_gain = 0  # meters
-    total_moving_time = 0  # seconds
-    unique_people = set()
-    activity_types = {}
-    
-    for activity in activities:
-        # Distance
-        total_distance += activity.get('distance', 0)
-        
-        # Elevation gain
-        total_elevation_gain += activity.get('total_elevation_gain', 0)
-        
-        # Moving time
-        total_moving_time += activity.get('moving_time', 0)
-        
-        # Track activity types for pace calculation
-        activity_type = activity.get('type', 'Unknown')
-        if activity_type not in activity_types:
-            activity_types[activity_type] = {'distance': 0, 'time': 0, 'count': 0}
-        activity_types[activity_type]['distance'] += activity.get('distance', 0)
-        activity_types[activity_type]['time'] += activity.get('moving_time', 0)
-        activity_types[activity_type]['count'] += 1
-        
-        # Collect unique athletes from kudos
-        if 'kudos_count' in activity and activity['kudos_count'] > 0:
-            # Note: The basic activity object doesn't include kudoer details
-            # We'll need to fetch detailed activity data to get names
-            pass
-    
-    return {
-        'count': len(activities),
-        'total_distance': total_distance,
-        'total_elevation_gain': total_elevation_gain,
-        'total_moving_time': total_moving_time,
-        'activity_types': activity_types,
-        'unique_people': unique_people
-    }
-
-
-def format_pace(distance_meters, time_seconds, activity_type):
-    """
-    Format pace based on activity type
-    
-    Args:
-        distance_meters: Distance in meters
-        time_seconds: Time in seconds
-        activity_type: Type of activity (Run, Ride, etc.)
-    
-    Returns:
-        Formatted pace string
-    """
-    if distance_meters == 0 or time_seconds == 0:
-        return "N/A"
-    
-    # For running activities, use min/km
-    if activity_type in ['Run', 'Walk', 'Hike', 'TrailRun']:
-        # Calculate minutes per kilometer
-        km = distance_meters / 1000
-        minutes_per_km = time_seconds / 60 / km
-        mins = int(minutes_per_km)
-        secs = int((minutes_per_km - mins) * 60)
-        return f"{mins}:{secs:02d}min/km"
-    
-    # For cycling and other activities, use km/h
-    else:
-        km = distance_meters / 1000
-        hours = time_seconds / 3600
-        kmh = km / hours
-        return f"{kmh:.1f}km/h"
-
-
-def format_time(seconds):
-    """Format time in seconds to human-readable string"""
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-    
-    if hours > 0:
-        return f"{hours}h {minutes}m {secs}s"
-    elif minutes > 0:
-        return f"{minutes}m {secs}s"
-    else:
-        return f"{secs}s"
-
-
-def prepare_stats_for_image(stats, activities, strava, year=None, activity_type=None, debug=False):
-    """
-    Prepare statistics data for display on image border
-    
-    Args:
-        stats: Statistics dict from calculate_statistics()
-        activities: List of activities
-        strava: StravaAPI instance
-        year: Year filter if specified
-        activity_type: Activity type filter if specified
-        debug: Enable debug output
-    
-    Returns:
-        Dict with formatted statistics for image display
-    """
-    if not stats:
-        return None
-    
-    # Get athlete profile
-    athlete = strava.get_athlete_profile()
-    first_name = athlete.get('firstname', 'My') if athlete else 'My'
-    
-    # Build title
-    if year and activity_type:
-        title = f"{first_name}'s {year} {activity_type} Wrap"
-    elif year:
-        title = f"{first_name}'s {year} Strava Wrap"
-    elif activity_type:
-        title = f"{first_name}'s {activity_type} Wrap"
-    else:
-        title = f"{first_name}'s Strava Wrap"
-    
-    # Calculate average pace based on primary activity type
-    avg_pace = "N/A"
-    if stats['activity_types']:
-        # Get the most common activity type
-        primary_type = max(stats['activity_types'].items(), key=lambda x: x[1]['count'])[0]
-        type_data = stats['activity_types'][primary_type]
-        avg_pace = format_pace(type_data['distance'], type_data['time'], primary_type)
-    
-    # Total kudos
-    total_kudos = sum(activity.get('kudos_count', 0) for activity in activities)
-    
-    return {
-        'title': title,
-        'activities': stats['count'],
-        'distance': stats['total_distance'] / 1000,  # Convert to km
-        'elevation': stats['total_elevation_gain'],
-        'time': stats['total_moving_time'] / 3600,  # Convert to hours
-        'pace': avg_pace,
-        'kudos': total_kudos
-    }
 
 
 def display_statistics(stats, activities, strava, debug=False):
@@ -628,6 +479,56 @@ def main():
     
     # Handle --multi option or --year without specific count (aggregate multiple activities)
     if args.multi or (args.year and (args.map or True)):
+        # Use wrap_generator for year-based image generation (most common use case)
+        if args.year and args.image:
+            style = WrapImageStyle(
+                output_file=args.output or 'multi_activity_image.png',
+                smoothing=args.smoothing,
+                img_width=args.img_width,
+                background_color=args.bg_color,
+                use_map_background=args.use_map_bg,
+                use_photo_background=args.use_photo_bg,
+                show_markers=not args.no_markers,
+                marker_size=args.marker_size,
+                square=args.square,
+                line_width=args.width if args.width != 3 else None,
+                border=args.border,
+                strava_color=args.strava_color,
+                color_override=args.color if args.strava_color else None,
+                include_stats_on_border=args.stats,
+            )
+            wrap_request = WrapGenerationRequest(
+                year=args.year,
+                activity_type=args.type,
+                cluster_id=args.cluster_id if args.find_clusters else None,
+                cluster_radius_km=args.cluster_radius,
+                min_cluster_size=args.min_cluster_size,
+                location_city=args.city,
+                location_radius_km=args.radius if args.city else None,
+                include_stats=args.stats,
+                style=style,
+                debug=args.debug,
+            )
+            try:
+                result = generate_wrap_image(strava, wrap_request)
+            except ValueError as exc:
+                print(f"\n❌ {exc}")
+                return
+
+            if args.stats and not args.border and result.stats:
+                display_statistics(result.stats, result.activities, strava, debug=args.debug)
+
+            print(f"\n✓ Multi-activity image saved!")
+            print(f"  File: {result.output_file}")
+            print(f"  {result.activities_count} activities displayed")
+            if style.square:
+                print(f"  Size: {style.img_width}x{style.img_width}px (square)")
+            else:
+                print(f"  Size: {style.img_width}px wide")
+            if args.year:
+                print(f"  Showing all activities from {args.year}")
+            return
+
         # Determine if we're fetching all activities from a year or a specific count
         if args.year:
             # When year is specified, fetch ALL activities from that year
