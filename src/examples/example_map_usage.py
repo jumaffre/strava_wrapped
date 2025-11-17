@@ -5,10 +5,7 @@ Example: Using the MapGenerator programmatically
 This example shows how to use the map generator in your own scripts
 """
 
-try:
-    from src.lib.map_generator import MapGenerator
-except ImportError:
-    from lib.map_generator import MapGenerator
+from src.lib.map_generator import MapGenerator
 
 # Example GPS coordinates (San Francisco area)
 sample_coordinates = [

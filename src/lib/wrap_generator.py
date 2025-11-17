@@ -8,11 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from .map_generator import MapGenerator
 from .location_utils import LocationUtils
-
-try:
-    from ..clustering_utils import ActivityClusterer
-except ImportError:  # pragma: no cover - support execution from src/
-    from clustering_utils import ActivityClusterer
+from ..clustering_utils import ActivityClusterer
 
 
 @dataclass

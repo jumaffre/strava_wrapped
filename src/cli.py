@@ -12,38 +12,20 @@ import argparse
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
-try:
-    # Try relative imports first (when running as a module)
-    from src.lib.strava_api import StravaAPI
-    from src.lib.map_generator import MapGenerator
-    from src.lib.location_utils import LocationUtils
-    from src.lib.wrap_generator import (
-        WrapGenerationRequest,
-        WrapImageStyle,
-        generate_wrap_image,
-        calculate_statistics,
-        format_pace,
-        format_time,
-        prepare_stats_for_image,
-        get_year_timestamps,
-    )
-    from src.clustering_utils import ActivityClusterer
-except ImportError:
-    # Fall back to local imports (when running directly from src/)
-    from lib.strava_api import StravaAPI
-    from lib.map_generator import MapGenerator
-    from lib.location_utils import LocationUtils
-    from lib.wrap_generator import (
-        WrapGenerationRequest,
-        WrapImageStyle,
-        generate_wrap_image,
-        calculate_statistics,
-        format_pace,
-        format_time,
-        prepare_stats_for_image,
-        get_year_timestamps,
-    )
-    from clustering_utils import ActivityClusterer
+from src.lib.strava_api import StravaAPI
+from src.lib.map_generator import MapGenerator
+from src.lib.location_utils import LocationUtils
+from src.lib.wrap_generator import (
+    WrapGenerationRequest,
+    WrapImageStyle,
+    generate_wrap_image,
+    calculate_statistics,
+    format_pace,
+    format_time,
+    prepare_stats_for_image,
+    get_year_timestamps,
+)
+from src.clustering_utils import ActivityClusterer
 
 
 def list_activities(strava, activity_type=None, count=10, year=None):
