@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  webapp:
+    build: .
+    container_name: strava-wrapped
+    ports:
+      - "5555:5555"
+    volumes:
+      # Mount .env file for credentials
+      - ./.env:/app/.env:ro
+      # Mount static/generated for persistent image storage
+      - ./static/generated:/app/static/generated
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
+
