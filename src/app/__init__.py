@@ -7,10 +7,18 @@ Flask web application for generating Strava wrap images.
 
 import os
 import uuid
+import logging
 from datetime import datetime
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file, url_for
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 from src.lib.strava_api import StravaAPI
 from src.lib.wrap_generator import (
@@ -62,13 +70,26 @@ def index():
 def generate():
     """Generate wrap image based on form parameters."""
     try:
+        logger.info("=" * 60)
+        logger.info("📥 Received wrap generation request")
+        logger.info("=" * 60)
+        
         # Get form data
         year = int(request.form.get('year', datetime.now().year))
-        activity_type = request.form.get('activity_type') or None
+        activity_type = request.form.get('activity_type') or 'Run'  # Default to Run
         cluster_id = int(request.form.get('cluster_id', 0)) if request.form.get('find_clusters') else None
         cluster_radius = float(request.form.get('cluster_radius', 100.0))
         location_city = request.form.get('location_city') or None
         location_radius = float(request.form.get('location_radius', 10.0)) if location_city else None
+        
+        logger.info(f"📋 Request parameters:")
+        logger.info(f"   Year: {year}")
+        logger.info(f"   Activity Type: {activity_type}")
+        logger.info(f"   Clustering: {'Enabled' if cluster_id is not None else 'Disabled'}")
+        if cluster_id is not None:
+            logger.info(f"   Cluster ID: {cluster_id}, Radius: {cluster_radius}km")
+        if location_city:
+            logger.info(f"   Location Filter: {location_city} (radius: {location_radius}km)")
         
         # Image style options
         smoothing = request.form.get('smoothing', 'medium')
@@ -81,9 +102,26 @@ def generate():
         include_stats = request.form.get('include_stats', 'on') == 'on'
         strava_color = request.form.get('strava_color') == 'on'
         
+        # Force map background, square format, border, stats, and no markers always
+        use_map_bg = True
+        square = True  # Always use square format
+        show_markers = False  # Always hide markers
+        border = True  # Border required for stats display
+        include_stats = True
+        
+        logger.info(f"🎨 Image style:")
+        logger.info(f"   Map Background: {use_map_bg} (forced ON)")
+        logger.info(f"   Square Format: {square} (forced ON)")
+        logger.info(f"   Show Markers: {show_markers} (forced OFF)")
+        logger.info(f"   Border: {border} (forced ON for stats)")
+        logger.info(f"   Include Stats: {include_stats} (forced ON)")
+        logger.info(f"   Smoothing: {smoothing}")
+        logger.info(f"   Width: {img_width}px")
+        
         # Generate unique filename
         filename = f"wrap_{uuid.uuid4().hex[:8]}.png"
         output_path = OUTPUT_DIR / filename
+        logger.info(f"💾 Output file: {output_path}")
         
         # Create style configuration
         style = WrapImageStyle(
@@ -91,12 +129,12 @@ def generate():
             smoothing=smoothing,
             img_width=img_width,
             background_color=background_color,
-            use_map_background=use_map_bg,
+            use_map_background=use_map_bg,  # Always True
             show_markers=show_markers,
             square=square,
             border=border,
             strava_color=strava_color,
-            include_stats_on_border=include_stats,
+            include_stats_on_border=include_stats,  # Always True
         )
         
         # Create generation request
@@ -107,18 +145,32 @@ def generate():
             cluster_radius_km=cluster_radius,
             location_city=location_city,
             location_radius_km=location_radius,
-            include_stats=include_stats,
+            include_stats=include_stats,  # Always True
             style=style,
             debug=False,
         )
         
+        logger.info("🔌 Initializing Strava API client...")
         # Initialize Strava client and generate
         strava = get_strava_client()
+        logger.info("✅ Strava client initialized")
+        
+        logger.info("🖼️  Starting image generation...")
+        logger.info("   This may take a minute...")
         result = generate_wrap_image(strava, wrap_request)
+        
+        logger.info("✅ Image generation completed!")
+        logger.info(f"   Activities included: {result.activities_count}")
+        if result.stats:
+            logger.info(f"   Total distance: {result.stats.get('total_distance', 0) / 1000:.1f} km")
+            logger.info(f"   Total elevation: {result.stats.get('total_elevation_gain', 0):.0f} m")
         
         # Return success with image URL
         # Use relative path for serving
         image_url = f'/static/generated/{filename}'
+        logger.info(f"🌐 Image URL: {image_url}")
+        logger.info("=" * 60)
+        
         return jsonify({
             'success': True,
             'image_url': image_url,
@@ -127,8 +179,12 @@ def generate():
         })
         
     except ValueError as e:
+        logger.error(f"❌ ValueError: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
+        import traceback
+        logger.error(f"❌ Exception occurred: {str(e)}")
+        logger.error(f"Traceback:\n{traceback.format_exc()}")
         return jsonify({'success': False, 'error': f'Internal error: {str(e)}'}), 500
 
 

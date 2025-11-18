@@ -96,26 +96,27 @@ class ImageProcessor:
             border_height = height - border_start_y
             
             # Try to load Helvetica or similar modern fonts
+            # Font sizes balanced to prevent overlapping
             try:
                 # Try Helvetica first (macOS/common) - using regular weight for elegance
-                title_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(border_height * 0.12))
-                number_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(border_height * 0.14))
-                unit_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(border_height * 0.09))  # Smaller for units
-                label_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(border_height * 0.065))
+                title_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(border_height * 0.15))
+                number_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(border_height * 0.17))
+                unit_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(border_height * 0.11))  # Smaller for units
+                label_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", int(border_height * 0.085))
             except:
                 try:
                     # Try Liberation Sans (Linux)
-                    title_font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", int(border_height * 0.12))
-                    number_font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", int(border_height * 0.14))
-                    unit_font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", int(border_height * 0.09))
-                    label_font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", int(border_height * 0.065))
+                    title_font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", int(border_height * 0.15))
+                    number_font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", int(border_height * 0.17))
+                    unit_font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", int(border_height * 0.11))
+                    label_font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", int(border_height * 0.085))
                 except:
                     try:
                         # Try DejaVu Sans (common Linux)
-                        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", int(border_height * 0.12))
-                        number_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", int(border_height * 0.14))
-                        unit_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", int(border_height * 0.09))
-                        label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", int(border_height * 0.065))
+                        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", int(border_height * 0.15))
+                        number_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", int(border_height * 0.17))
+                        unit_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", int(border_height * 0.11))
+                        label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", int(border_height * 0.085))
                     except:
                         # Fallback
                         title_font = ImageFont.load_default()
@@ -129,7 +130,11 @@ class ImageProcessor:
             label_color = '#7a7a7a'
             
             # Title positioning with MORE padding at top
-            title = stats_data.get('title', 'Strava Wrap').title()  # Capitalize properly
+            # Format title: capitalize first letter of each word, but keep possessive 's' lowercase
+            title_raw = stats_data.get('title', 'Strava Wrap')
+            title = title_raw.title()
+            # Fix possessive 's' - replace 'S with 's
+            title = title.replace("'S ", "'s ").replace("'S", "'s")
             title_bbox = draw.textbbox((0, 0), title, font=title_font)
             title_width = title_bbox[2] - title_bbox[0]
             title_height = title_bbox[3] - title_bbox[1]
