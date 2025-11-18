@@ -8,9 +8,10 @@ Flask web application for generating Strava wrap images.
 import os
 import uuid
 import logging
+import requests
 from datetime import datetime
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_file, url_for
+from flask import Flask, render_template, request, jsonify, send_file, url_for, session, redirect
 from dotenv import load_dotenv
 
 # Configure logging
@@ -40,35 +41,65 @@ app = Flask(__name__,
             template_folder=str(TEMPLATES_DIR))
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# OAuth configuration
+STRAVA_CLIENT_ID = os.getenv('STRAVA_CLIENT_ID', '').strip()
+STRAVA_CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET', '').strip()
+STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize"
+STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
+STRAVA_SCOPE = "activity:read_all"
+
+# Check if we should use env-based auth (--env-auth flag)
+USE_ENV_AUTH = os.getenv('USE_ENV_AUTH', 'false').lower() == 'true'
+
 # Create output directory for generated images
 OUTPUT_DIR = STATIC_DIR / 'generated'
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_strava_client():
-    """Initialize and return StravaAPI client from environment variables."""
-    client_id = os.getenv('STRAVA_CLIENT_ID', '').strip()
-    client_secret = os.getenv('STRAVA_CLIENT_SECRET', '').strip()
-    refresh_token = os.getenv('STRAVA_REFRESH_TOKEN', '').strip()
-    
-    if not all([client_id, client_secret, refresh_token]):
-        raise ValueError(
-            "Missing Strava API credentials. "
-            "Please set STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, and STRAVA_REFRESH_TOKEN in .env"
-        )
-    
-    return StravaAPI(client_id, client_secret, refresh_token, debug=False)
+    """Initialize and return StravaAPI client from session (OAuth) or environment variables."""
+    if USE_ENV_AUTH:
+        # Use environment variables for authentication
+        client_id = os.getenv('STRAVA_CLIENT_ID', '').strip()
+        client_secret = os.getenv('STRAVA_CLIENT_SECRET', '').strip()
+        refresh_token = os.getenv('STRAVA_REFRESH_TOKEN', '').strip()
+        
+        if not all([client_id, client_secret, refresh_token]):
+            raise ValueError(
+                "Missing Strava API credentials. "
+                "Please set STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, and STRAVA_REFRESH_TOKEN in .env"
+            )
+        
+        return StravaAPI(client_id, client_secret, refresh_token, debug=False)
+    else:
+        # Use OAuth tokens from session
+        if 'strava_refresh_token' not in session:
+            raise ValueError("Not authenticated. Please connect your Strava account.")
+        
+        refresh_token = session['strava_refresh_token']
+        return StravaAPI(STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, refresh_token, debug=False)
 
 
 @app.route('/')
 def index():
     """Main page with form to generate wrap."""
-    return render_template('index.html')
+    # Check if authenticated (unless using env auth)
+    is_authenticated = USE_ENV_AUTH or 'strava_refresh_token' in session
+    athlete_name = session.get('athlete_name', None) if not USE_ENV_AUTH else None
+    
+    return render_template('index.html', 
+                         is_authenticated=is_authenticated,
+                         athlete_name=athlete_name,
+                         use_env_auth=USE_ENV_AUTH)
 
 
 @app.route('/generate', methods=['POST'])
 def generate():
     """Generate wrap image based on form parameters."""
+    # Check authentication
+    if not USE_ENV_AUTH and 'strava_refresh_token' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated. Please connect your Strava account.'}), 401
+    
     try:
         logger.info("=" * 60)
         logger.info("📥 Received wrap generation request")
@@ -186,6 +217,96 @@ def generate():
         logger.error(f"❌ Exception occurred: {str(e)}")
         logger.error(f"Traceback:\n{traceback.format_exc()}")
         return jsonify({'success': False, 'error': f'Internal error: {str(e)}'}), 500
+
+
+@app.route('/auth/strava')
+def auth_strava():
+    """Initiate Strava OAuth flow."""
+    if USE_ENV_AUTH:
+        return jsonify({'error': 'OAuth is disabled when using --env-auth'}), 400
+    
+    if not STRAVA_CLIENT_ID or not STRAVA_CLIENT_SECRET:
+        return jsonify({'error': 'Strava OAuth not configured. Set STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET'}), 500
+    
+    # Generate state for CSRF protection
+    state = uuid.uuid4().hex
+    session['oauth_state'] = state
+    
+    # Build authorization URL
+    redirect_uri = request.url_root.rstrip('/') + '/auth/callback'
+    auth_url = (
+        f"{STRAVA_AUTH_URL}?"
+        f"client_id={STRAVA_CLIENT_ID}&"
+        f"redirect_uri={redirect_uri}&"
+        f"response_type=code&"
+        f"scope={STRAVA_SCOPE}&"
+        f"state={state}"
+    )
+    
+    logger.info(f"🔐 Initiating OAuth flow, redirecting to Strava...")
+    return redirect(auth_url)
+
+
+@app.route('/auth/callback')
+def auth_callback():
+    """Handle Strava OAuth callback."""
+    if USE_ENV_AUTH:
+        return jsonify({'error': 'OAuth is disabled when using --env-auth'}), 400
+    
+    # Verify state
+    state = request.args.get('state')
+    if state != session.get('oauth_state'):
+        logger.error("❌ OAuth state mismatch")
+        return jsonify({'error': 'Invalid state parameter'}), 400
+    
+    # Check for error
+    error = request.args.get('error')
+    if error:
+        logger.error(f"❌ OAuth error: {error}")
+        return jsonify({'error': f'OAuth error: {error}'}), 400
+    
+    # Get authorization code
+    code = request.args.get('code')
+    if not code:
+        return jsonify({'error': 'No authorization code received'}), 400
+    
+    # Exchange code for tokens
+    redirect_uri = request.url_root.rstrip('/') + '/auth/callback'
+    token_data = {
+        'client_id': STRAVA_CLIENT_ID,
+        'client_secret': STRAVA_CLIENT_SECRET,
+        'code': code,
+        'grant_type': 'authorization_code'
+    }
+    
+    try:
+        logger.info("🔄 Exchanging authorization code for tokens...")
+        response = requests.post(STRAVA_TOKEN_URL, data=token_data)
+        response.raise_for_status()
+        token_response = response.json()
+        
+        # Store tokens in session
+        session['strava_access_token'] = token_response.get('access_token')
+        session['strava_refresh_token'] = token_response.get('refresh_token')
+        session['athlete_name'] = token_response.get('athlete', {}).get('firstname', 'User')
+        
+        # Clear OAuth state
+        session.pop('oauth_state', None)
+        
+        logger.info(f"✅ OAuth authentication successful for {session.get('athlete_name')}")
+        return redirect('/')
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Error exchanging token: {e}")
+        return jsonify({'error': f'Failed to exchange authorization code: {str(e)}'}), 500
+
+
+@app.route('/auth/logout')
+def auth_logout():
+    """Log out and clear session."""
+    session.clear()
+    logger.info("👋 User logged out")
+    return redirect('/')
 
 
 @app.route('/image/<filename>')
