@@ -325,6 +325,31 @@
             font-size: 1.1rem;
         }
 
+        .btn-refresh {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            margin-left: 8px;
+            vertical-align: middle;
+            transition: all 0.2s;
+            border-radius: 4px;
+        }
+
+        .btn-refresh:hover {
+            color: var(--strava-orange);
+            background: var(--bg-card);
+        }
+
+        .btn-refresh.loading svg {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Rankings */
         .rankings {
             display: flex;
@@ -846,9 +871,16 @@
             'default': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>'
         };
 
-        async function loadStats() {
+        async function loadStats(refresh = false) {
             try {
-                const response = await fetch('/api/stats');
+                // Show loading state for refresh
+                const refreshBtn = document.querySelector('.btn-refresh');
+                if (refreshBtn) {
+                    refreshBtn.classList.add('loading');
+                }
+                
+                const url = refresh ? '/api/stats?refresh=1' : '/api/stats';
+                const response = await fetch(url);
                 const data = await response.json();
                 
                 if (!data.success) {
@@ -875,7 +907,15 @@
             const html = `
                 <div class="welcome-section">
                     <h1 class="welcome-title">Hey ${data.athlete.firstname}! <span class="welcome-year">${data.year}</span></h1>
-                    <p class="welcome-subtitle">Here's your year in motion. Click on any area to generate your wrap!</p>
+                    <p class="welcome-subtitle">
+                        Here's your year in motion. Click on any area to generate your wrap!
+                        <button class="btn-refresh" onclick="loadStats(true)" title="Refresh stats">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 4v6h-6M1 20v-6h6"/>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                            </svg>
+                        </button>
+                    </p>
                 </div>
 
                 <div class="rankings">

@@ -364,29 +364,51 @@ def get_user_stats():
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
     
     try:
+        year = datetime.now().year
+        cache_key = f'stats_{year}'
+        
+        # Check if we have cached stats (expires when session ends or user logs out)
+        if cache_key in session and not request.args.get('refresh'):
+            logger.info("📊 Returning cached stats")
+            return jsonify(session[cache_key])
+        
         logger.info("=" * 60)
-        logger.info("📊 Fetching user stats")
+        logger.info("📊 Fetching user stats (fresh)")
         logger.info("=" * 60)
         
         strava = get_strava_client()
         athlete = get_current_user()
-        year = datetime.now().year
         
         logger.info(f"👤 User: {athlete.get('firstname', 'Unknown')} {athlete.get('lastname', '')}")
         logger.info(f"📅 Year: {year}")
         
-        # Fetch all activities for the year using date range
-        logger.info("🔄 Fetching activities...")
+        # Get quick YTD stats from athlete stats endpoint (single fast API call)
+        logger.info("🔄 Fetching athlete stats...")
+        athlete_id = athlete.get('id')
+        quick_stats = strava.get_athlete_stats(athlete_id) if athlete_id else None
+        
+        # Extract YTD totals from quick stats
+        ytd_totals = {'distance': 0, 'elevation': 0, 'time': 0, 'count': 0}
+        if quick_stats:
+            for stat_type in ['ytd_run_totals', 'ytd_ride_totals', 'ytd_swim_totals']:
+                totals = quick_stats.get(stat_type, {})
+                ytd_totals['distance'] += totals.get('distance', 0)
+                ytd_totals['elevation'] += totals.get('elevation_gain', 0)
+                ytd_totals['time'] += totals.get('moving_time', 0)
+                ytd_totals['count'] += totals.get('count', 0)
+        
+        # Fetch all activities for the year for clustering
+        logger.info("🔄 Fetching activities for clustering...")
         start_of_year = datetime(year, 1, 1).timestamp()
         end_of_year = datetime(year, 12, 31, 23, 59, 59).timestamp()
         all_activities = strava.get_activities(per_page=200, after=start_of_year, before=end_of_year)
         logger.info(f"✅ Found {len(all_activities)} total activities")
         
-        # Calculate total stats across all activities
-        total_distance = sum(a.get('distance', 0) for a in all_activities)
-        total_elevation = sum(a.get('total_elevation_gain', 0) for a in all_activities)
-        total_time = sum(a.get('moving_time', 0) for a in all_activities)
-        total_kudos = sum(a.get('kudos_count', 0) for a in all_activities)
+        # Use YTD stats for totals (faster), or calculate from activities
+        total_distance = ytd_totals['distance'] if ytd_totals['distance'] > 0 else sum(a.get('distance', 0) for a in all_activities)
+        total_elevation = ytd_totals['elevation'] if ytd_totals['elevation'] > 0 else sum(a.get('total_elevation_gain', 0) for a in all_activities)
+        total_time = ytd_totals['time'] if ytd_totals['time'] > 0 else sum(a.get('moving_time', 0) for a in all_activities)
+        total_kudos = sum(a.get('kudos_count', 0) for a in all_activities)  # Not in YTD stats
         
         # Activity types that typically have GPS/map data
         GPS_ACTIVITY_TYPES = {
@@ -412,7 +434,7 @@ def get_user_stats():
         # Sort by count (all activity types with GPS)
         sorted_types = sorted(activity_types.items(), key=lambda x: len(x[1]), reverse=True)
         
-        # For each activity type, fetch GPS data and find clusters
+        # For each activity type, use start_latlng for clustering (NO extra API calls - 100x faster!)
         top_activities = []
         for act_type, activities in sorted_types:
             logger.info(f"📍 Processing {act_type}: {len(activities)} activities")
@@ -422,22 +444,18 @@ def get_user_stats():
             type_elevation = sum(a.get('total_elevation_gain', 0) for a in activities)
             type_time = sum(a.get('moving_time', 0) for a in activities)
             
-            # Fetch GPS data for ALL activities (not limited)
+            # Use start_latlng from activity data (already fetched, no extra API calls!)
             activities_with_coords = []
             for activity in activities:
-                try:
-                    streams = strava.get_activity_streams(activity['id'])
-                    if 'latlng' in streams and streams['latlng']['data']:
-                        activities_with_coords.append({
-                            'id': activity['id'],
-                            'name': activity.get('name', 'Activity'),
-                            'coordinates': streams['latlng']['data'],
-                            'distance': activity.get('distance', 0),
-                            'date': activity.get('start_date_local', '')[:10]
-                        })
-                except Exception as e:
-                    logger.warning(f"⚠️ Could not fetch GPS for activity {activity['id']}: {e}")
-                    continue
+                start_latlng = activity.get('start_latlng')
+                if start_latlng and len(start_latlng) == 2:
+                    activities_with_coords.append({
+                        'id': activity['id'],
+                        'name': activity.get('name', 'Activity'),
+                        'coordinates': [start_latlng],  # Just start point for clustering
+                        'distance': activity.get('distance', 0),
+                        'date': activity.get('start_date_local', '')[:10]
+                    })
             
             # Find clusters (min_activities=1 to include all)
             clusters = []
@@ -489,7 +507,10 @@ def get_user_stats():
             'top_activities': top_activities
         }
         
-        logger.info("✅ Stats generated successfully")
+        # Cache the result in session for fast subsequent loads
+        session[cache_key] = result
+        
+        logger.info("✅ Stats generated and cached successfully")
         return jsonify(result)
         
     except Exception as e:

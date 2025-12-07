@@ -346,4 +346,29 @@ class StravaAPI:
             if self.debug:
                 print(f"[DEBUG] Error fetching athlete profile: {e}")
             return None
+    
+    def get_athlete_stats(self, athlete_id):
+        """
+        Fetch aggregated stats for an athlete (fast - single API call)
+        
+        Args:
+            athlete_id: The athlete's Strava ID
+        
+        Returns:
+            Dict with ytd_run_totals, ytd_ride_totals, ytd_swim_totals, etc.
+        """
+        if not self.access_token:
+            self.get_access_token()
+        
+        headers = {'Authorization': f'Bearer {self.access_token}'}
+        url = f"{self.BASE_URL}/athletes/{athlete_id}/stats"
+        
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            if self.debug:
+                print(f"[DEBUG] Error fetching athlete stats: {e}")
+            return None
 
