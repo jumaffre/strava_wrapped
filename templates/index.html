@@ -1,33 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strava Wrapped</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-        rel="stylesheet">
-    <script>
-        // Apply theme immediately to prevent flash
-        (function () {
-            const stored = localStorage.getItem('theme') || 'system';
-            let theme = stored;
-            if (stored === 'system') {
-                theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            }
-            document.documentElement.setAttribute('data-theme', theme);
-        })();
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        /* Dark theme (default) */
-        :root,
-        [data-theme="dark"] {
+        :root {
             --strava-orange: #FC4C02;
             --strava-orange-dark: #e04400;
-            --strava-orange-glow: rgba(252, 76, 2, 0.15);
             --bg-dark: #0a0a0f;
             --bg-card: #12121a;
             --bg-input: #1a1a25;
@@ -36,27 +19,6 @@
             --text-muted: #5a5a6e;
             --border-color: #2a2a3a;
             --accent-glow: rgba(252, 76, 2, 0.15);
-            --shadow-color: rgba(0, 0, 0, 0.3);
-            --toggle-bg: #1a1a25;
-            --toggle-active: #2a2a3a;
-        }
-
-        /* Light theme */
-        [data-theme="light"] {
-            --strava-orange: #FC4C02;
-            --strava-orange-dark: #d94200;
-            --strava-orange-glow: rgba(252, 76, 2, 0.12);
-            --bg-dark: #f5f5f7;
-            --bg-card: #ffffff;
-            --bg-input: #f0f0f2;
-            --text-primary: #1a1a1f;
-            --text-secondary: #5a5a6e;
-            --text-muted: #8b8b9e;
-            --border-color: #e0e0e5;
-            --accent-glow: rgba(252, 76, 2, 0.1);
-            --shadow-color: rgba(0, 0, 0, 0.08);
-            --toggle-bg: #e8e8ec;
-            --toggle-active: #ffffff;
         }
 
         * {
@@ -82,7 +44,7 @@
         /* Header */
         header {
             text-align: center;
-            margin-bottom: 60px;
+            margin-bottom: 40px;
             position: relative;
         }
 
@@ -106,53 +68,140 @@
             font-weight: 400;
         }
 
-        /* Theme Toggle */
-        .theme-toggle {
-            position: absolute;
-            top: 0;
-            right: 0;
+        /* User bar */
+        .user-bar {
             display: flex;
-            background: var(--toggle-bg);
-            border-radius: 10px;
-            padding: 4px;
-            gap: 2px;
-            border: 1px solid var(--border-color);
+            justify-content: flex-end;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
-        .theme-toggle button {
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 50px;
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--strava-orange);
+        }
+
+        .user-avatar-placeholder {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--bg-input);
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 36px;
-            height: 32px;
-            border: none;
+            color: var(--text-muted);
+            font-size: 1rem;
+            border: 2px solid var(--border-color);
+        }
+
+        .user-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
             background: transparent;
-            border-radius: 7px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.2s ease;
-            color: var(--text-muted);
+            text-decoration: none;
         }
 
-        .theme-toggle button:hover {
+        .btn-logout:hover {
+            border-color: var(--text-muted);
+            color: var(--text-primary);
+        }
+
+        /* Connect with Strava button */
+        .btn-strava {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: var(--strava-orange);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-strava:hover {
+            background: var(--strava-orange-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(252, 76, 2, 0.4);
+        }
+
+        .btn-strava svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* Login prompt */
+        .login-prompt {
+            text-align: center;
+            padding: 60px 40px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .login-prompt h2 {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+        }
+
+        .login-prompt p {
             color: var(--text-secondary);
+            margin-bottom: 32px;
         }
 
-        .theme-toggle button.active {
-            background: var(--toggle-active);
+        .login-features {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 32px;
+            text-align: left;
+        }
+
+        .login-feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .login-feature svg {
+            width: 20px;
+            height: 20px;
             color: var(--strava-orange);
-            box-shadow: 0 1px 3px var(--shadow-color);
-        }
-
-        .theme-toggle button svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        @media (max-width: 600px) {
-            .theme-toggle {
-                position: static;
-                margin: 0 auto 20px;
-            }
+            flex-shrink: 0;
         }
 
         /* Main layout */
@@ -177,7 +226,6 @@
             padding: 32px;
             position: sticky;
             top: 24px;
-            box-shadow: 0 4px 24px var(--shadow-color);
         }
 
         .form-title {
@@ -239,10 +287,6 @@
             background-position: right 12px center;
             background-size: 18px;
             padding-right: 44px;
-        }
-
-        [data-theme="light"] .form-group select {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%235a5a6e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
         }
 
         .form-row {
@@ -312,16 +356,14 @@
             left: 50%;
             margin-left: -12px;
             margin-top: -12px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(255,255,255,0.3);
             border-top-color: white;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
 
         @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+            to { transform: rotate(360deg); }
         }
 
         /* Preview panel */
@@ -333,7 +375,6 @@
             min-height: 600px;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 4px 24px var(--shadow-color);
         }
 
         .preview-header {
@@ -376,6 +417,7 @@
             cursor: pointer;
             transition: all 0.2s ease;
             display: none;
+            text-decoration: none;
         }
 
         .btn-download:hover {
@@ -496,48 +538,42 @@
         }
     </style>
 </head>
-
 <body>
     <div class="container">
-        <header>
-            <div class="theme-toggle" id="themeToggle">
-                <button type="button" data-theme="light" title="Light mode">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"></circle>
-                        <line x1="12" y1="1" x2="12" y2="3"></line>
-                        <line x1="12" y1="21" x2="12" y2="23"></line>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                        <line x1="1" y1="12" x2="3" y2="12"></line>
-                        <line x1="21" y1="12" x2="23" y2="12"></line>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                    </svg>
-                </button>
-                <button type="button" data-theme="system" title="System preference">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                        <line x1="8" y1="21" x2="16" y2="21"></line>
-                        <line x1="12" y1="17" x2="12" y2="21"></line>
-                    </svg>
-                </button>
-                <button type="button" data-theme="dark" title="Dark mode">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
-                </button>
+        <!-- User bar - shown when authenticated -->
+        {% if authenticated %}
+        <div class="user-bar">
+            <div class="user-profile">
+                {% if user and user.profile_medium %}
+                <img src="{{ user.profile_medium }}" alt="Profile" class="user-avatar">
+                {% else %}
+                <div class="user-avatar-placeholder">👤</div>
+                {% endif %}
+                <span class="user-name">
+                    {% if user %}{{ user.firstname }} {{ user.lastname }}{% else %}Athlete{% endif %}
+                </span>
             </div>
+            <a href="/logout" class="btn-logout">Logout</a>
+        </div>
+        {% endif %}
+
+        <header>
             <h1 class="logo">Strava <span>Wrapped</span></h1>
             <p class="tagline">Generate beautiful visualizations of your year in motion</p>
         </header>
 
+        {% if error %}
+        <div class="error-message visible" style="max-width: 500px; margin: 0 auto 24px;">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        {% if authenticated %}
+        <!-- Main app - shown when authenticated -->
         <div class="main-grid">
             <div class="form-panel">
                 <h2 class="form-title">Configure Your Wrap</h2>
-
+                
                 <form id="wrapForm">
                     <div class="form-row">
                         <div class="form-group">
@@ -569,8 +605,7 @@
                         </div>
                         <div class="form-group">
                             <label for="location_radius">Radius (km)</label>
-                            <input type="number" id="location_radius" name="location_radius" value="10" min="1"
-                                max="100">
+                            <input type="number" id="location_radius" name="location_radius" value="10" min="1" max="100">
                         </div>
                     </div>
 
@@ -600,8 +635,7 @@
                     <h2 class="preview-title">Preview</h2>
                     <div class="preview-actions">
                         <a id="downloadBtn" class="btn-download" download="strava-wrapped.png">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                 <polyline points="7 10 12 15 17 10"></polyline>
                                 <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -613,8 +647,7 @@
 
                 <div class="preview-content" id="previewContent">
                     <div class="preview-placeholder" id="placeholder">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                            stroke-linecap="round" stroke-linejoin="round">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                             <circle cx="8.5" cy="8.5" r="1.5"></circle>
                             <polyline points="21 15 16 10 5 21"></polyline>
@@ -645,52 +678,62 @@
             </div>
         </div>
 
+        {% else %}
+        <!-- Login prompt - shown when not authenticated -->
+        <div class="login-prompt">
+            <h2>Connect Your Strava Account</h2>
+            <p>Sign in with Strava to generate your personalized year-in-review visualization</p>
+            
+            <a href="/login" class="btn-strava">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+                </svg>
+                Connect with Strava
+            </a>
+
+            <div class="login-features">
+                <div class="login-feature">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    <span>Access all your activities from any year</span>
+                </div>
+                <div class="login-feature">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <span>Generate beautiful poster-quality images</span>
+                </div>
+                <div class="login-feature">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    <span>Filter by location to see city-specific routes</span>
+                </div>
+                <div class="login-feature">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <span>Your data stays private and secure</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <footer>
             <p>Built with 🧡 using the <a href="https://developers.strava.com/" target="_blank">Strava API</a></p>
         </footer>
     </div>
 
+    {% if authenticated %}
     <script>
-        // Theme management
-        const themeToggle = document.getElementById('themeToggle');
-        const themeButtons = themeToggle.querySelectorAll('button');
-
-        function getSystemTheme() {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-
-        function applyTheme(setting) {
-            const actualTheme = setting === 'system' ? getSystemTheme() : setting;
-            document.documentElement.setAttribute('data-theme', actualTheme);
-
-            // Update active button
-            themeButtons.forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.theme === setting);
-            });
-        }
-
-        function setTheme(setting) {
-            localStorage.setItem('theme', setting);
-            applyTheme(setting);
-        }
-
-        // Initialize theme
-        const savedTheme = localStorage.getItem('theme') || 'system';
-        applyTheme(savedTheme);
-
-        // Handle button clicks
-        themeButtons.forEach(btn => {
-            btn.addEventListener('click', () => setTheme(btn.dataset.theme));
-        });
-
-        // Listen for system theme changes
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-            if (localStorage.getItem('theme') === 'system') {
-                applyTheme('system');
-            }
-        });
-
-        // Form handling
         const form = document.getElementById('wrapForm');
         const generateBtn = document.getElementById('generateBtn');
         const downloadBtn = document.getElementById('downloadBtn');
@@ -702,47 +745,47 @@
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-
+            
             // Reset UI
             errorMessage.classList.remove('visible');
             generateBtn.classList.add('loading');
             generateBtn.disabled = true;
-
+            
             try {
                 const formData = new FormData(form);
-
+                
                 const response = await fetch('/generate', {
                     method: 'POST',
                     body: formData
                 });
-
+                
                 const result = await response.json();
-
+                
                 if (result.success) {
                     // Show image
                     previewImage.src = result.image_url;
                     previewImage.style.display = 'block';
                     placeholder.style.display = 'none';
                     previewContent.classList.add('has-image');
-
+                    
                     // Show download button
                     downloadBtn.href = result.image_url;
                     downloadBtn.classList.add('visible');
-
+                    
                     // Show stats
                     if (result.stats) {
                         document.getElementById('statActivities').textContent = result.activities_count || '-';
-                        document.getElementById('statDistance').textContent =
-                            result.stats.total_distance
-                                ? Math.round(result.stats.total_distance / 1000) + 'km'
+                        document.getElementById('statDistance').textContent = 
+                            result.stats.total_distance 
+                                ? Math.round(result.stats.total_distance / 1000) + 'km' 
                                 : '-';
-                        document.getElementById('statElevation').textContent =
-                            result.stats.total_elevation_gain
-                                ? Math.round(result.stats.total_elevation_gain) + 'm'
+                        document.getElementById('statElevation').textContent = 
+                            result.stats.total_elevation_gain 
+                                ? Math.round(result.stats.total_elevation_gain) + 'm' 
                                 : '-';
-                        document.getElementById('statTime').textContent =
-                            result.stats.total_moving_time
-                                ? Math.round(result.stats.total_moving_time / 3600) + 'h'
+                        document.getElementById('statTime').textContent = 
+                            result.stats.total_moving_time 
+                                ? Math.round(result.stats.total_moving_time / 3600) + 'h' 
                                 : '-';
                         statsBar.classList.add('visible');
                     }
@@ -758,6 +801,6 @@
             }
         });
     </script>
+    {% endif %}
 </body>
-
 </html>
