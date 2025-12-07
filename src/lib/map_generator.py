@@ -411,6 +411,96 @@ class ImageProcessor:
             return image_path
     
     @staticmethod
+    def add_title_overlay(image_path, title, stats=None, position='bottom'):
+        """
+        Add a beautiful title and stats overlay to an image
+        
+        Args:
+            image_path: Path to the image file
+            title: Title text (e.g., "London")
+            stats: Dict with 'activities', 'distance_km', 'elevation_m', 'time_hours'
+            position: 'bottom' or 'top'
+        
+        Returns:
+            Path to the saved image
+        """
+        try:
+            img = Image.open(image_path)
+            width, height = img.size
+            
+            # Create overlay (no gradient - clean look)
+            overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(overlay)
+            
+            # Font sizes - title smaller, stats proportional
+            title_size = int(height * 0.055)  # Smaller title
+            stats_size = int(height * 0.032)
+            label_size = int(height * 0.018)
+            
+            # Load Outfit font
+            try:
+                import urllib.request
+                import os
+                
+                font_dir = os.path.join(os.path.dirname(__file__), '..', '..', '.fonts')
+                os.makedirs(font_dir, exist_ok=True)
+                font_path_bold = os.path.join(font_dir, 'Outfit-Bold.ttf')
+                font_path_semibold = os.path.join(font_dir, 'Outfit-SemiBold.ttf')
+                font_path_medium = os.path.join(font_dir, 'Outfit-Medium.ttf')
+                
+                # Download fonts if needed
+                base_url = "https://raw.githubusercontent.com/nicokosi/homemade-react-dashboards/main/public/fonts"
+                if not os.path.exists(font_path_bold):
+                    urllib.request.urlretrieve(f"{base_url}/Outfit-Bold.ttf", font_path_bold)
+                if not os.path.exists(font_path_semibold):
+                    urllib.request.urlretrieve(f"{base_url}/Outfit-SemiBold.ttf", font_path_semibold)
+                if not os.path.exists(font_path_medium):
+                    urllib.request.urlretrieve(f"{base_url}/Outfit-Medium.ttf", font_path_medium)
+                
+                title_font = ImageFont.truetype(font_path_bold, title_size)
+                stats_font = ImageFont.truetype(font_path_semibold, stats_size)
+                label_font = ImageFont.truetype(font_path_medium, label_size)
+            except Exception as font_err:
+                print(f"⚠️  Could not load Outfit font: {font_err}, using fallback")
+                try:
+                    title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", title_size)
+                    stats_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", stats_size)
+                    label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", label_size)
+                except:
+                    title_font = ImageFont.load_default()
+                    stats_font = ImageFont.load_default()
+                    label_font = ImageFont.load_default()
+            
+            # Colors
+            strava_orange = '#FC4C02'
+            
+            # Calculate positions
+            padding = int(width * 0.04)
+            bottom_y = height - padding
+            
+            # Calculate title position (at bottom)
+            title_bbox = draw.textbbox((0, 0), title, font=title_font)
+            title_height = title_bbox[3] - title_bbox[1]
+            title_y = bottom_y - title_height
+            
+            # Draw title
+            draw.text((padding, title_y), title, fill=strava_orange, font=title_font)
+            
+            # Composite overlay onto image
+            img = img.convert('RGBA')
+            img = Image.alpha_composite(img, overlay)
+            img = img.convert('RGB')
+            
+            img.save(image_path)
+            return image_path
+            
+        except Exception as e:
+            print(f"⚠️  Could not add title overlay: {e}")
+            import traceback
+            traceback.print_exc()
+            return image_path
+    
+    @staticmethod
     def download_image(url):
         """
         Download image from URL
@@ -1402,7 +1492,7 @@ class MapGenerator:
                                      background_color='white', show_markers=True, dpi=100,
                                      background_image_url=None, force_square=False, marker_size=15,
                                      use_map_background=False, single_color=None, add_border=False,
-                                     stats_data=None):
+                                     stats_data=None, title=None, overlay_stats=None):
         """
         Create a static image with multiple activities displayed together
         
@@ -1422,6 +1512,8 @@ class MapGenerator:
             dpi: DPI for the output image
             add_border: Add white border around image (3% sides/top, 20% bottom)
             stats_data: Optional dict with statistics to display on border (requires add_border=True)
+            title: Title to overlay on image (e.g., cluster name)
+            overlay_stats: Stats dict for overlay (activities, distance_km, elevation_m, time_hours)
         
         Returns:
             Path to saved file
@@ -1604,6 +1696,10 @@ class MapGenerator:
             # Add statistics text if provided
             if stats_data:
                 ImageProcessor.add_statistics_text(output_file, stats_data)
+        
+        # Add title overlay if provided
+        if title:
+            ImageProcessor.add_title_overlay(output_file, title, overlay_stats)
         
         print(f"Image saved to: {output_file}")
         print(f"Total activities: {len(activities_data)}")

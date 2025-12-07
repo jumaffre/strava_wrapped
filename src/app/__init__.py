@@ -531,7 +531,7 @@ def generate_cluster_image():
         activity_type = data.get('activity_type')
         activity_ids = data.get('activity_ids', [])
         cluster_name = data.get('cluster_name', 'Area')
-        img_width = int(data.get('img_width', 1500))
+        img_width = int(data.get('img_width', 3000))  # Higher resolution
         
         logger.info("=" * 60)
         logger.info(f"🖼️ Generating cluster image: {cluster_name}")
@@ -546,7 +546,7 @@ def generate_cluster_image():
         
         for activity_id in activity_ids:
             try:
-                # Get activity details
+                # Get GPS data
                 streams = strava.get_activity_streams(activity_id)
                 
                 if 'latlng' in streams and streams['latlng']['data']:
@@ -573,14 +573,15 @@ def generate_cluster_image():
             activities_data,
             output_file=str(output_path),
             smoothing='medium',
-            line_width=3,  # Thinner lines
+            line_width=5,  # Slightly thicker for higher res
             width_px=img_width,
             show_markers=False,
             use_map_background=True,
             single_color='#FC4C02',
             force_square=True,
-            add_border=False,  # No border
-            stats_data=None  # No stats
+            add_border=False,
+            stats_data=None,
+            title=cluster_name  # Add title overlay
         )
         
         image_url = f'/static/generated/{filename}'
