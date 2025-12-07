@@ -5,7 +5,7 @@ services:
     build: .
     container_name: strava-wrapped
     ports:
-      - "5555:5555"
+      - "5556:5555"
     volumes:
       # Mount .env file for credentials
       - ./.env:/app/.env:ro
