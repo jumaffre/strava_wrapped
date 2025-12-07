@@ -411,6 +411,113 @@ class ImageProcessor:
             return image_path
     
     @staticmethod
+    def create_stats_image(output_path, title, year, stats, theme='dark', width=1200, height=630):
+        """
+        Create a beautiful stats-only image (no map) for sharing
+        
+        Args:
+            output_path: Path to save the image
+            title: Title text (e.g., "John's 2025")
+            year: Year number
+            stats: Dict with 'activities', 'distance_km', 'elevation_m', 'time_hours', 'kudos'
+            theme: 'dark' or 'light'
+            width: Image width in pixels
+            height: Image height in pixels
+        
+        Returns:
+            Path to saved image
+        """
+        try:
+            # Theme colors
+            if theme == 'light':
+                bg_color = (248, 248, 250)
+                text_color = (17, 17, 22)
+                secondary_color = (92, 92, 112)
+                muted_color = (148, 148, 168)
+            else:
+                bg_color = (8, 8, 12)
+                text_color = (255, 255, 255)
+                secondary_color = (148, 148, 168)
+                muted_color = (92, 92, 112)
+            
+            strava_orange = (252, 76, 2)
+            
+            # Create image
+            img = Image.new('RGB', (width, height), bg_color)
+            draw = ImageDraw.Draw(img)
+            
+            # Load fonts
+            title_size = int(height * 0.11)
+            year_size = int(height * 0.18)
+            stat_value_size = int(height * 0.095)
+            stat_label_size = int(height * 0.038)
+            
+            # Load system fonts
+            try:
+                title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", title_size)
+                year_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", year_size)
+                stat_value_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", stat_value_size)
+                stat_label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", stat_label_size)
+            except:
+                title_font = ImageFont.load_default()
+                year_font = ImageFont.load_default()
+                stat_value_font = ImageFont.load_default()
+                stat_label_font = ImageFont.load_default()
+            
+            padding = int(width * 0.06)
+            
+            # Draw title (top left)
+            draw.text((padding, padding), title, fill=text_color, font=title_font)
+            
+            # Draw year in large orange text
+            title_bbox = draw.textbbox((0, 0), title, font=title_font)
+            title_height = title_bbox[3] - title_bbox[1]
+            year_y = padding + title_height + int(height * 0.02)
+            draw.text((padding, year_y), str(year), fill=strava_orange, font=year_font)
+            
+            # Draw Strava Wrapped text
+            year_bbox = draw.textbbox((0, 0), str(year), font=year_font)
+            year_width = year_bbox[2] - year_bbox[0]
+            wrapped_x = padding + year_width + int(width * 0.02)
+            wrapped_y = year_y + int(height * 0.08)
+            draw.text((wrapped_x, wrapped_y), "Wrapped", fill=secondary_color, font=title_font)
+            
+            # Draw stats in bottom section
+            stats_y = height - padding - int(height * 0.22)
+            stat_items = [
+                (str(stats.get('activities', 0)), 'activities'),
+                (f"{stats.get('distance_km', 0):,.0f}", 'kilometers'),
+                (f"{stats.get('elevation_m', 0):,.0f}", 'meters climbed'),
+                (f"{stats.get('time_hours', 0):,.0f}", 'hours'),
+                (str(stats.get('kudos', 0)), 'kudos'),
+            ]
+            
+            stat_width = (width - 2 * padding) / len(stat_items)
+            
+            for i, (value, label) in enumerate(stat_items):
+                stat_x = padding + i * stat_width
+                
+                # Draw value
+                draw.text((stat_x, stats_y), value, fill=strava_orange, font=stat_value_font)
+                
+                # Draw label
+                value_bbox = draw.textbbox((0, 0), value, font=stat_value_font)
+                value_height = value_bbox[3] - value_bbox[1]
+                label_y = stats_y + value_height + int(height * 0.015)
+                draw.text((stat_x, label_y), label, fill=muted_color, font=stat_label_font)
+            
+            # Save image
+            img.save(output_path, 'PNG')
+            print(f"✅ Stats image saved: {output_path}")
+            return output_path
+            
+        except Exception as e:
+            print(f"⚠️ Could not create stats image: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    @staticmethod
     def add_title_overlay(image_path, title, stats=None, position='bottom'):
         """
         Add a beautiful title and stats overlay to an image
@@ -437,39 +544,15 @@ class ImageProcessor:
             stats_size = int(height * 0.032)
             label_size = int(height * 0.018)
             
-            # Load Outfit font
+            # Load system fonts
             try:
-                import urllib.request
-                import os
-                
-                font_dir = os.path.join(os.path.dirname(__file__), '..', '..', '.fonts')
-                os.makedirs(font_dir, exist_ok=True)
-                font_path_bold = os.path.join(font_dir, 'Outfit-Bold.ttf')
-                font_path_semibold = os.path.join(font_dir, 'Outfit-SemiBold.ttf')
-                font_path_medium = os.path.join(font_dir, 'Outfit-Medium.ttf')
-                
-                # Download fonts if needed
-                base_url = "https://raw.githubusercontent.com/nicokosi/homemade-react-dashboards/main/public/fonts"
-                if not os.path.exists(font_path_bold):
-                    urllib.request.urlretrieve(f"{base_url}/Outfit-Bold.ttf", font_path_bold)
-                if not os.path.exists(font_path_semibold):
-                    urllib.request.urlretrieve(f"{base_url}/Outfit-SemiBold.ttf", font_path_semibold)
-                if not os.path.exists(font_path_medium):
-                    urllib.request.urlretrieve(f"{base_url}/Outfit-Medium.ttf", font_path_medium)
-                
-                title_font = ImageFont.truetype(font_path_bold, title_size)
-                stats_font = ImageFont.truetype(font_path_semibold, stats_size)
-                label_font = ImageFont.truetype(font_path_medium, label_size)
-            except Exception as font_err:
-                print(f"⚠️  Could not load Outfit font: {font_err}, using fallback")
-                try:
-                    title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", title_size)
-                    stats_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", stats_size)
-                    label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", label_size)
-                except:
-                    title_font = ImageFont.load_default()
-                    stats_font = ImageFont.load_default()
-                    label_font = ImageFont.load_default()
+                title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", title_size)
+                stats_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", stats_size)
+                label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", label_size)
+            except:
+                title_font = ImageFont.load_default()
+                stats_font = ImageFont.load_default()
+                label_font = ImageFont.load_default()
             
             # Colors
             strava_orange = '#FC4C02'

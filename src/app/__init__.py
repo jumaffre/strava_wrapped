@@ -598,3 +598,75 @@ def generate_cluster_image():
         logger.error(f"❌ Error generating cluster image: {e}")
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/generate-stats-image', methods=['POST'])
+def generate_stats_image():
+    """Generate a shareable stats-only image."""
+    if not is_authenticated():
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    try:
+        data = request.get_json() or {}
+        theme = data.get('theme', 'dark')
+        
+        logger.info(f"📸 Generating stats image with theme: {theme}")
+        
+        # Get cached stats from session (use same cache key as /api/stats)
+        year = datetime.now().year
+        cache_key = f'stats_{year}'
+        cached = session.get(cache_key)
+        
+        logger.info(f"📊 Cache key: {cache_key}, cached data exists: {cached is not None}")
+        
+        if not cached:
+            logger.warning("⚠️ No cached stats found")
+            return jsonify({'success': False, 'error': 'Stats not loaded yet. Please refresh the page.'}), 400
+        
+        # Get user info from session or fetch it
+        athlete = session.get('athlete', {})
+        if not athlete.get('firstname'):
+            strava = StravaAPI(session['access_token'])
+            athlete = strava.get_athlete()
+        first_name = athlete.get('firstname', 'Athlete')
+        
+        # Prepare stats from cached data (already converted)
+        total_stats = cached.get('total_stats', {})
+        
+        stats = {
+            'activities': total_stats.get('activities', 0),
+            'distance_km': total_stats.get('distance_km', 0),
+            'elevation_m': total_stats.get('elevation_m', 0),
+            'time_hours': total_stats.get('time_hours', 0),
+            'kudos': total_stats.get('kudos', 0)
+        }
+        
+        # Generate the image
+        filename = f"stats_{uuid.uuid4().hex[:8]}.png"
+        output_path = OUTPUT_DIR / filename
+        
+        from src.lib.map_generator import ImageProcessor
+        
+        result = ImageProcessor.create_stats_image(
+            output_path=str(output_path),
+            title=f"{first_name}'s",
+            year=year,
+            stats=stats,
+            theme=theme
+        )
+        
+        if not result:
+            return jsonify({'success': False, 'error': 'Failed to generate image'}), 500
+        
+        image_url = f'/static/generated/{filename}'
+        
+        return jsonify({
+            'success': True,
+            'image_url': image_url
+        })
+        
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ Error generating stats image: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
