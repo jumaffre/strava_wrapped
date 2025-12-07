@@ -463,7 +463,7 @@ def get_user_stats():
                 # Find geographic clusters with 75km radius
                 raw_clusters = ActivityClusterer.find_areas_of_interest(
                     activities_with_coords,
-                    radius_km=75.0,
+                    radius_km=50.0,
                     min_activities=1
                 )
                 
