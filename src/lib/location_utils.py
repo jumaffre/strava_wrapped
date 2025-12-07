@@ -100,6 +100,70 @@ class LocationUtils:
             return None
     
     @staticmethod
+    def reverse_geocode(lat: float, lon: float, debug: bool = False) -> Optional[str]:
+        """
+        Convert coordinates to a human-readable location name using Nominatim
+        
+        Args:
+            lat: Latitude
+            lon: Longitude
+            debug: Enable debug output
+        
+        Returns:
+            Location name string or None if not found
+        """
+        url = "https://nominatim.openstreetmap.org/reverse"
+        
+        params = {
+            'lat': lat,
+            'lon': lon,
+            'format': 'json',
+            'zoom': 14,  # City/town level
+            'addressdetails': 1
+        }
+        
+        headers = {
+            'User-Agent': 'StravaWrapped/1.0 (Strava GPS Activity Mapper)'
+        }
+        
+        try:
+            if debug:
+                print(f"[DEBUG] Reverse geocoding: {lat:.6f}, {lon:.6f}")
+            
+            response = requests.get(url, params=params, headers=headers, timeout=5)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            if 'error' in result:
+                return None
+            
+            # Try to get a nice short name
+            address = result.get('address', {})
+            
+            # Priority order for location name
+            name = (
+                address.get('suburb') or
+                address.get('neighbourhood') or
+                address.get('village') or
+                address.get('town') or
+                address.get('city_district') or
+                address.get('city') or
+                address.get('municipality') or
+                result.get('name')
+            )
+            
+            if debug and name:
+                print(f"[DEBUG] Found location: {name}")
+            
+            return name
+            
+        except Exception as e:
+            if debug:
+                print(f"[DEBUG] Reverse geocode error: {e}")
+            return None
+    
+    @staticmethod
     def is_within_radius(point_lat: float, point_lon: float, 
                         center_lat: float, center_lon: float, 
                         radius_km: float) -> bool:

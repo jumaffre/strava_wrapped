@@ -28,6 +28,8 @@ from src.lib.wrap_generator import (
     WrapImageStyle,
     generate_wrap_image,
 )
+from src.lib.clustering_utils import ActivityClusterer
+from src.lib.location_utils import LocationUtils
 
 # Load environment variables
 load_dotenv()
@@ -118,9 +120,14 @@ def get_strava_client():
 
 @app.route('/')
 def index():
-    """Main page with form to generate wrap."""
+    """Main page - landing or dashboard based on auth state."""
     user = get_current_user()
-    return render_template('index.html', user=user, authenticated=is_authenticated())
+    # Check if this is a fresh login (just came from callback)
+    just_logged_in = request.args.get('fresh') == '1'
+    return render_template('index.html', 
+                          user=user, 
+                          authenticated=is_authenticated(),
+                          loading=just_logged_in)
 
 
 @app.route('/login')
@@ -190,7 +197,8 @@ def callback():
         athlete = data.get('athlete', {})
         logger.info(f"✅ OAuth successful for {athlete.get('firstname', 'Unknown')} {athlete.get('lastname', '')}")
         
-        return redirect(url_for('index'))
+        # Redirect with fresh=1 to trigger loading state
+        return redirect(url_for('index') + '?fresh=1')
         
     except Exception as e:
         logger.error(f"❌ Error during OAuth callback: {e}")
@@ -344,3 +352,237 @@ def get_image(filename):
     if file_path.exists() and file_path.is_file():
         return send_file(file_path, mimetype='image/png')
     return jsonify({'error': 'Image not found'}), 404
+
+
+@app.route('/api/stats')
+def get_user_stats():
+    """
+    Fetch user's activity stats for the current year.
+    Returns total stats, top 3 activity types, and clusters for each.
+    """
+    if not is_authenticated():
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    try:
+        logger.info("=" * 60)
+        logger.info("📊 Fetching user stats")
+        logger.info("=" * 60)
+        
+        strava = get_strava_client()
+        athlete = get_current_user()
+        year = datetime.now().year
+        
+        logger.info(f"👤 User: {athlete.get('firstname', 'Unknown')} {athlete.get('lastname', '')}")
+        logger.info(f"📅 Year: {year}")
+        
+        # Fetch all activities for the year using date range
+        logger.info("🔄 Fetching activities...")
+        start_of_year = datetime(year, 1, 1).timestamp()
+        end_of_year = datetime(year, 12, 31, 23, 59, 59).timestamp()
+        all_activities = strava.get_activities(per_page=200, after=start_of_year, before=end_of_year)
+        logger.info(f"✅ Found {len(all_activities)} total activities")
+        
+        # Calculate total stats across all activities
+        total_distance = sum(a.get('distance', 0) for a in all_activities)
+        total_elevation = sum(a.get('total_elevation_gain', 0) for a in all_activities)
+        total_time = sum(a.get('moving_time', 0) for a in all_activities)
+        total_kudos = sum(a.get('kudos_count', 0) for a in all_activities)
+        
+        # Activity types that typically have GPS/map data
+        GPS_ACTIVITY_TYPES = {
+            'Run', 'Ride', 'Walk', 'Hike', 'Trail Run', 'VirtualRide', 'VirtualRun',
+            'Gravel Ride', 'Mountain Bike Ride', 'E-Bike Ride', 'E-Mountain Bike Ride',
+            'Handcycle', 'Velomobile', 'Wheelchair', 'Nordic Ski', 'Alpine Ski',
+            'Backcountry Ski', 'Snowboard', 'Snowshoe', 'Ice Skate', 'Inline Skate',
+            'Roller Ski', 'Kayaking', 'Kitesurf', 'Rowing', 'Stand Up Paddling',
+            'Surf', 'Windsurf', 'Canoe', 'Sail', 'Golf', 'Skateboard'
+        }
+        
+        # Group by activity type (only types with GPS)
+        activity_types = {}
+        for activity in all_activities:
+            act_type = activity.get('type', 'Other')
+            # Skip activity types that don't have GPS data
+            if act_type not in GPS_ACTIVITY_TYPES:
+                continue
+            if act_type not in activity_types:
+                activity_types[act_type] = []
+            activity_types[act_type].append(activity)
+        
+        # Sort by count (all activity types with GPS)
+        sorted_types = sorted(activity_types.items(), key=lambda x: len(x[1]), reverse=True)
+        
+        # For each activity type, fetch GPS data and find clusters
+        top_activities = []
+        for act_type, activities in sorted_types:
+            logger.info(f"📍 Processing {act_type}: {len(activities)} activities")
+            
+            # Calculate stats for this type
+            type_distance = sum(a.get('distance', 0) for a in activities)
+            type_elevation = sum(a.get('total_elevation_gain', 0) for a in activities)
+            type_time = sum(a.get('moving_time', 0) for a in activities)
+            
+            # Fetch GPS data for ALL activities (not limited)
+            activities_with_coords = []
+            for activity in activities:
+                try:
+                    streams = strava.get_activity_streams(activity['id'])
+                    if 'latlng' in streams and streams['latlng']['data']:
+                        activities_with_coords.append({
+                            'id': activity['id'],
+                            'name': activity.get('name', 'Activity'),
+                            'coordinates': streams['latlng']['data'],
+                            'distance': activity.get('distance', 0),
+                            'date': activity.get('start_date_local', '')[:10]
+                        })
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not fetch GPS for activity {activity['id']}: {e}")
+                    continue
+            
+            # Find clusters (min_activities=1 to include all)
+            clusters = []
+            if activities_with_coords:
+                # First, add an "All" cluster with every activity
+                all_activity_ids = [a['id'] for a in activities_with_coords]
+                clusters.append({
+                    'id': 'all',
+                    'name': f"All {act_type}s",
+                    'count': len(all_activity_ids),
+                    'center': None,
+                    'activity_ids': all_activity_ids
+                })
+                
+                # Then find geographic clusters
+                raw_clusters = ActivityClusterer.find_areas_of_interest(
+                    activities_with_coords,
+                    radius_km=5.0,
+                    min_activities=1
+                )
+                
+                # Format clusters for frontend (no limit)
+                for i, cluster in enumerate(raw_clusters):
+                    center_lat, center_lon = cluster['center']
+                    # Try to get location name
+                    location_name = LocationUtils.reverse_geocode(center_lat, center_lon)
+                    clusters.append({
+                        'id': i,
+                        'name': location_name or f"Area {i + 1}",
+                        'count': cluster['count'],
+                        'center': {'lat': center_lat, 'lon': center_lon},
+                        'activity_ids': [a['id'] for a in cluster['activities']]
+                    })
+            
+            top_activities.append({
+                'type': act_type,
+                'count': len(activities),
+                'distance_km': round(type_distance / 1000, 1),
+                'elevation_m': round(type_elevation),
+                'time_hours': round(type_time / 3600, 1),
+                'clusters': clusters
+            })
+        
+        result = {
+            'success': True,
+            'year': year,
+            'athlete': {
+                'firstname': athlete.get('firstname', 'Athlete'),
+                'lastname': athlete.get('lastname', ''),
+                'profile': athlete.get('profile_medium')
+            },
+            'total_stats': {
+                'activities': len(all_activities),
+                'distance_km': round(total_distance / 1000, 1),
+                'elevation_m': round(total_elevation),
+                'time_hours': round(total_time / 3600, 1),
+                'kudos': total_kudos
+            },
+            'top_activities': top_activities
+        }
+        
+        logger.info("✅ Stats generated successfully")
+        return jsonify(result)
+        
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ Error fetching stats: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/generate-cluster', methods=['POST'])
+def generate_cluster_image():
+    """Generate wrap image for a specific cluster."""
+    if not is_authenticated():
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    try:
+        data = request.get_json()
+        activity_type = data.get('activity_type')
+        activity_ids = data.get('activity_ids', [])
+        cluster_name = data.get('cluster_name', 'Area')
+        img_width = int(data.get('img_width', 1500))
+        
+        logger.info("=" * 60)
+        logger.info(f"🖼️ Generating cluster image: {cluster_name}")
+        logger.info(f"   Activity type: {activity_type}")
+        logger.info(f"   Activities: {len(activity_ids)}")
+        logger.info("=" * 60)
+        
+        strava = get_strava_client()
+        
+        # Fetch GPS data for the specific activities
+        activities_data = []
+        
+        for activity_id in activity_ids:
+            try:
+                # Get activity details
+                streams = strava.get_activity_streams(activity_id)
+                
+                if 'latlng' in streams and streams['latlng']['data']:
+                    activities_data.append({
+                        'id': activity_id,
+                        'name': f'Activity {activity_id}',
+                        'coordinates': streams['latlng']['data'],
+                        'type': activity_type
+                    })
+            except Exception as e:
+                logger.warning(f"⚠️ Could not fetch activity {activity_id}: {e}")
+                continue
+        
+        if not activities_data:
+            return jsonify({'success': False, 'error': 'No GPS data found for activities'}), 400
+        
+        # Generate the image
+        filename = f"wrap_{uuid.uuid4().hex[:8]}.png"
+        output_path = OUTPUT_DIR / filename
+        
+        from src.lib.map_generator import MapGenerator
+        
+        MapGenerator.create_multi_activity_image(
+            activities_data,
+            output_file=str(output_path),
+            smoothing='medium',
+            line_width=3,  # Thinner lines
+            width_px=img_width,
+            show_markers=False,
+            use_map_background=True,
+            single_color='#FC4C02',
+            force_square=True,
+            add_border=False,  # No border
+            stats_data=None  # No stats
+        )
+        
+        image_url = f'/static/generated/{filename}'
+        logger.info(f"✅ Image generated: {image_url}")
+        
+        return jsonify({
+            'success': True,
+            'image_url': image_url,
+            'activities_count': len(activities_data)
+        })
+        
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ Error generating cluster image: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500

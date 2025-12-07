@@ -6,19 +6,21 @@
     <title>Strava Wrapped</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
             --strava-orange: #FC4C02;
             --strava-orange-dark: #e04400;
-            --bg-dark: #0a0a0f;
-            --bg-card: #12121a;
-            --bg-input: #1a1a25;
+            --strava-orange-glow: rgba(252, 76, 2, 0.2);
+            --bg-dark: #08080c;
+            --bg-card: #111116;
+            --bg-card-hover: #16161c;
+            --bg-input: #1a1a22;
             --text-primary: #ffffff;
-            --text-secondary: #8b8b9e;
-            --text-muted: #5a5a6e;
-            --border-color: #2a2a3a;
-            --accent-glow: rgba(252, 76, 2, 0.15);
+            --text-secondary: #9494a8;
+            --text-muted: #5c5c70;
+            --border-color: #252530;
+            --success-green: #22c55e;
         }
 
         * {
@@ -28,7 +30,7 @@
         }
 
         body {
-            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-dark);
             color: var(--text-primary);
             min-height: 100vh;
@@ -36,81 +38,55 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 40px 24px;
         }
 
         /* Header */
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-            position: relative;
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 48px;
         }
 
         .logo {
-            font-size: 3rem;
+            font-size: 1.75rem;
             font-weight: 700;
-            letter-spacing: -0.03em;
-            margin-bottom: 8px;
+            letter-spacing: -0.02em;
         }
 
         .logo span {
-            background: linear-gradient(135deg, var(--strava-orange) 0%, #ff7e45 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--strava-orange);
         }
 
-        .tagline {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-            font-weight: 400;
-        }
-
-        /* User bar */
-        .user-bar {
+        .user-section {
             display: flex;
-            justify-content: flex-end;
             align-items: center;
             gap: 16px;
-            margin-bottom: 24px;
         }
 
-        .user-profile {
+        .user-pill {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 8px 16px;
+            gap: 10px;
+            padding: 6px 16px 6px 6px;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
-            border-radius: 50px;
+            border-radius: 100px;
         }
 
         .user-avatar {
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid var(--strava-orange);
-        }
-
-        .user-avatar-placeholder {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: var(--bg-input);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-muted);
-            font-size: 1rem;
-            border: 2px solid var(--border-color);
         }
 
         .user-name {
             font-weight: 500;
-            color: var(--text-primary);
+            font-size: 0.9rem;
         }
 
         .btn-logout {
@@ -122,8 +98,8 @@
             font-family: inherit;
             font-size: 0.85rem;
             cursor: pointer;
-            transition: all 0.2s ease;
             text-decoration: none;
+            transition: all 0.2s;
         }
 
         .btn-logout:hover {
@@ -131,189 +107,39 @@
             color: var(--text-primary);
         }
 
-        /* Connect with Strava button */
-        .btn-strava {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 14px 28px;
-            background: var(--strava-orange);
-            border: none;
-            border-radius: 12px;
-            color: white;
-            font-family: inherit;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        .btn-strava:hover {
-            background: var(--strava-orange-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(252, 76, 2, 0.4);
-        }
-
-        .btn-strava svg {
-            width: 24px;
-            height: 24px;
-        }
-
-        /* Login prompt */
-        .login-prompt {
+        /* Landing Page */
+        .landing {
             text-align: center;
-            padding: 60px 40px;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            max-width: 500px;
-            margin: 0 auto;
+            padding: 80px 20px;
         }
 
-        .login-prompt h2 {
-            font-size: 1.5rem;
-            margin-bottom: 12px;
-        }
-
-        .login-prompt p {
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-        }
-
-        .login-features {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 32px;
-            text-align: left;
-        }
-
-        .login-feature {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .login-feature svg {
-            width: 20px;
-            height: 20px;
-            color: var(--strava-orange);
-            flex-shrink: 0;
-        }
-
-        /* Main layout */
-        .main-grid {
-            display: grid;
-            grid-template-columns: 380px 1fr;
-            gap: 40px;
-            align-items: start;
-        }
-
-        @media (max-width: 1024px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Form panel */
-        .form-panel {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            padding: 32px;
-            position: sticky;
-            top: 24px;
-        }
-
-        .form-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 24px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .form-title::before {
-            content: '';
-            width: 4px;
-            height: 24px;
-            background: var(--strava-orange);
-            border-radius: 2px;
-        }
-
-        .form-group {
+        .landing-title {
+            font-size: clamp(2.5rem, 6vw, 4rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
             margin-bottom: 20px;
         }
 
-        .form-group label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 500;
+        .landing-title span {
+            background: linear-gradient(135deg, var(--strava-orange) 0%, #ff7e45 50%, #ffb347 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .landing-subtitle {
+            font-size: 1.25rem;
             color: var(--text-secondary);
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            max-width: 500px;
+            margin: 0 auto 48px;
         }
 
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 14px 16px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            color: var(--text-primary);
-            font-family: inherit;
-            font-size: 1rem;
-            transition: all 0.2s ease;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: var(--strava-orange);
-            box-shadow: 0 0 0 3px var(--accent-glow);
-        }
-
-        .form-group select {
-            cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%238b8b9e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            background-size: 18px;
-            padding-right: 44px;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        .form-section {
-            border-top: 1px solid var(--border-color);
-            padding-top: 20px;
-            margin-top: 20px;
-        }
-
-        .form-section-title {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin-bottom: 16px;
-        }
-
-        /* Generate button */
-        .btn-generate {
-            width: 100%;
-            padding: 18px 24px;
+        .btn-strava {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 36px;
             background: linear-gradient(135deg, var(--strava-orange) 0%, var(--strava-orange-dark) 100%);
             border: none;
             border-radius: 14px;
@@ -322,210 +148,465 @@
             font-size: 1.1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 8px;
-            position: relative;
-            overflow: hidden;
+            text-decoration: none;
+            transition: all 0.3s;
         }
 
-        .btn-generate:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(252, 76, 2, 0.4);
+        .btn-strava:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px var(--strava-orange-glow);
         }
 
-        .btn-generate:active {
-            transform: translateY(0);
-        }
-
-        .btn-generate:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-generate.loading {
-            color: transparent;
-        }
-
-        .btn-generate.loading::after {
-            content: '';
-            position: absolute;
+        .btn-strava svg {
             width: 24px;
             height: 24px;
-            top: 50%;
-            left: 50%;
-            margin-left: -12px;
-            margin-top: -12px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-top-color: white;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-top: 80px;
+            text-align: left;
+        }
+
+        .feature {
+            padding: 28px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--strava-orange-glow);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            color: var(--strava-orange);
+        }
+
+        .feature-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .feature-desc {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Loading State */
+        .loading-state {
+            text-align: center;
+            padding: 100px 20px;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--strava-orange);
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 32px;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        /* Preview panel */
-        .preview-panel {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            padding: 32px;
-            min-height: 600px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .preview-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
-
-        .preview-title {
+        .loading-text {
             font-size: 1.25rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .preview-title::before {
-            content: '';
-            width: 4px;
-            height: 24px;
-            background: var(--strava-orange);
-            border-radius: 2px;
-        }
-
-        .preview-actions {
-            display: flex;
-            gap: 12px;
-        }
-
-        .btn-download {
-            padding: 10px 20px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            color: var(--text-primary);
-            font-family: inherit;
-            font-size: 0.9rem;
             font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: none;
-            text-decoration: none;
+            margin-bottom: 8px;
         }
 
-        .btn-download:hover {
-            background: var(--border-color);
+        .loading-subtext {
+            color: var(--text-secondary);
         }
 
-        .btn-download.visible {
-            display: inline-flex;
+        /* Dashboard */
+        .dashboard {
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .welcome-section {
+            margin-bottom: 48px;
+        }
+
+        .welcome-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .welcome-year {
+            color: var(--strava-orange);
+        }
+
+        .welcome-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Rankings */
+        .rankings {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+
+        .ranking-pill {
+            display: flex;
             align-items: center;
             gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 100px;
+            font-size: 0.9rem;
         }
 
-        .preview-content {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px dashed var(--border-color);
-            border-radius: 16px;
-            background: var(--bg-input);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .preview-content.has-image {
-            border-style: solid;
-            border-color: var(--border-color);
-        }
-
-        .preview-placeholder {
-            text-align: center;
-            color: var(--text-muted);
-        }
-
-        .preview-placeholder svg {
-            width: 64px;
-            height: 64px;
-            margin-bottom: 16px;
-            opacity: 0.5;
-        }
-
-        .preview-placeholder p {
-            font-size: 1rem;
-        }
-
-        .preview-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            border-radius: 12px;
-        }
-
-        /* Stats bar */
-        .stats-bar {
-            display: none;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 16px;
-            margin-top: 24px;
-            padding-top: 24px;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .stats-bar.visible {
-            display: grid;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 1.5rem;
+        .ranking-number {
             font-weight: 700;
             color: var(--strava-orange);
             font-family: 'JetBrains Mono', monospace;
         }
 
+        .ranking-icon {
+            display: flex;
+            color: var(--text-muted);
+        }
+
+        .ranking-icon svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .ranking-name {
+            font-weight: 500;
+        }
+
+        .ranking-count {
+            background: var(--bg-input);
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Total Stats */
+        .total-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+
+        .stat-card {
+            padding: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--strava-orange);
+            margin-bottom: 4px;
+        }
+
         .stat-label {
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-top: 4px;
         }
 
-        /* Error message */
-        .error-message {
-            background: rgba(255, 59, 48, 0.1);
-            border: 1px solid rgba(255, 59, 48, 0.3);
-            color: #ff6b6b;
-            padding: 16px;
+        /* Activity Types */
+        .activity-section {
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .activity-type-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 28px;
+            margin-bottom: 20px;
+        }
+
+        .activity-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .activity-type-name {
+            font-size: 1.35rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .activity-type-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--strava-orange-glow);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--strava-orange);
+        }
+
+        .activity-stats {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .activity-stat {
+            text-align: right;
+        }
+
+        .activity-stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .activity-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        /* Clusters */
+        .clusters-section {
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+
+        .clusters-title {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 16px;
+        }
+
+        .clusters-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .cluster-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
             border-radius: 12px;
-            margin-top: 16px;
-            display: none;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
-        .error-message.visible {
-            display: block;
+        .cluster-btn:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--strava-orange);
+            transform: translateY(-2px);
+        }
+
+        .cluster-btn.cluster-all {
+            background: linear-gradient(135deg, var(--strava-orange) 0%, var(--strava-orange-dark) 100%);
+            border-color: var(--strava-orange);
+            color: white;
+        }
+
+        .cluster-btn.cluster-all .cluster-count {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .cluster-btn.cluster-all:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px var(--strava-orange-glow);
+        }
+
+        .cluster-btn.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .cluster-btn .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--strava-orange);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .cluster-count {
+            background: var(--strava-orange);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+
+        .no-clusters {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* Preview Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .modal-overlay.visible {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            max-width: 700px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: auto;
+            animation: modalIn 0.3s ease;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .preview-image {
+            width: 100%;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-download {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, var(--strava-orange) 0%, var(--strava-orange-dark) 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px var(--strava-orange-glow);
         }
 
         /* Footer */
         footer {
             text-align: center;
-            margin-top: 60px;
+            margin-top: 80px;
             padding-top: 24px;
             border-top: 1px solid var(--border-color);
             color: var(--text-muted);
-            font-size: 0.85rem;
+            font-size: 0.9rem;
         }
 
         footer a {
@@ -533,156 +614,62 @@
             text-decoration: none;
         }
 
-        footer a:hover {
-            text-decoration: underline;
+        /* Error */
+        .error-banner {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 16px;
+            }
+            
+            .activity-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .activity-stats {
+                width: 100%;
+                justify-content: space-between;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- User bar - shown when authenticated -->
-        {% if authenticated %}
-        <div class="user-bar">
-            <div class="user-profile">
-                {% if user and user.profile_medium %}
-                <img src="{{ user.profile_medium }}" alt="Profile" class="user-avatar">
-                {% else %}
-                <div class="user-avatar-placeholder">👤</div>
-                {% endif %}
-                <span class="user-name">
-                    {% if user %}{{ user.firstname }} {{ user.lastname }}{% else %}Athlete{% endif %}
-                </span>
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">Strava<span>Wrapped</span></div>
+            {% if authenticated %}
+            <div class="user-section">
+                <div class="user-pill">
+                    {% if user and user.profile_medium %}
+                    <img src="{{ user.profile_medium }}" alt="Profile" class="user-avatar">
+                    {% endif %}
+                    <span class="user-name">{{ user.firstname if user else 'Athlete' }}</span>
+                </div>
+                <a href="/logout" class="btn-logout">Logout</a>
             </div>
-            <a href="/logout" class="btn-logout">Logout</a>
-        </div>
-        {% endif %}
-
-        <header>
-            <h1 class="logo">Strava <span>Wrapped</span></h1>
-            <p class="tagline">Generate beautiful visualizations of your year in motion</p>
+            {% endif %}
         </header>
 
         {% if error %}
-        <div class="error-message visible" style="max-width: 500px; margin: 0 auto 24px;">
-            {{ error }}
-        </div>
+        <div class="error-banner">{{ error }}</div>
         {% endif %}
 
-        {% if authenticated %}
-        <!-- Main app - shown when authenticated -->
-        <div class="main-grid">
-            <div class="form-panel">
-                <h2 class="form-title">Configure Your Wrap</h2>
-                
-                <form id="wrapForm">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="year">Year</label>
-                            <select id="year" name="year">
-                                <option value="2025" selected>2025</option>
-                                <option value="2024">2024</option>
-                                <option value="2023">2023</option>
-                                <option value="2022">2022</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="activity_type">Activity Type</label>
-                            <select id="activity_type" name="activity_type">
-                                <option value="Run" selected>Run</option>
-                                <option value="Ride">Ride</option>
-                                <option value="Hike">Hike</option>
-                                <option value="Walk">Walk</option>
-                                <option value="Swim">Swim</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-section">
-                        <div class="form-section-title">Location Filter (Optional)</div>
-                        <div class="form-group">
-                            <label for="location_city">City</label>
-                            <input type="text" id="location_city" name="location_city" placeholder="e.g., London, UK">
-                        </div>
-                        <div class="form-group">
-                            <label for="location_radius">Radius (km)</label>
-                            <input type="number" id="location_radius" name="location_radius" value="10" min="1" max="100">
-                        </div>
-                    </div>
-
-                    <div class="form-section">
-                        <div class="form-section-title">Image Settings</div>
-                        <div class="form-group">
-                            <label for="img_width">Size (pixels)</label>
-                            <select id="img_width" name="img_width">
-                                <option value="1080">1080px (Instagram)</option>
-                                <option value="1500" selected>1500px (Standard)</option>
-                                <option value="2000">2000px (High Quality)</option>
-                                <option value="3000">3000px (Print)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn-generate" id="generateBtn">
-                        Generate Wrap
-                    </button>
-
-                    <div class="error-message" id="errorMessage"></div>
-                </form>
-            </div>
-
-            <div class="preview-panel">
-                <div class="preview-header">
-                    <h2 class="preview-title">Preview</h2>
-                    <div class="preview-actions">
-                        <a id="downloadBtn" class="btn-download" download="strava-wrapped.png">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="7 10 12 15 17 10"></polyline>
-                                <line x1="12" y1="15" x2="12" y2="3"></line>
-                            </svg>
-                            Download
-                        </a>
-                    </div>
-                </div>
-
-                <div class="preview-content" id="previewContent">
-                    <div class="preview-placeholder" id="placeholder">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                            <polyline points="21 15 16 10 5 21"></polyline>
-                        </svg>
-                        <p>Your wrap will appear here</p>
-                    </div>
-                    <img id="previewImage" class="preview-image" style="display: none;">
-                </div>
-
-                <div class="stats-bar" id="statsBar">
-                    <div class="stat-item">
-                        <div class="stat-value" id="statActivities">-</div>
-                        <div class="stat-label">Activities</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="statDistance">-</div>
-                        <div class="stat-label">Distance</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="statElevation">-</div>
-                        <div class="stat-label">Elevation</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="statTime">-</div>
-                        <div class="stat-label">Time</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {% else %}
-        <!-- Login prompt - shown when not authenticated -->
-        <div class="login-prompt">
-            <h2>Connect Your Strava Account</h2>
-            <p>Sign in with Strava to generate your personalized year-in-review visualization</p>
+        {% if not authenticated %}
+        <!-- Landing Page -->
+        <div class="landing">
+            <h1 class="landing-title">Your Year in<br><span>Motion</span></h1>
+            <p class="landing-subtitle">Transform your Strava activities into beautiful, shareable visualizations. See your routes, stats, and achievements in a whole new way.</p>
             
             <a href="/login" class="btn-strava">
                 <svg viewBox="0 0 24 24" fill="currentColor">
@@ -691,40 +678,59 @@
                 Connect with Strava
             </a>
 
-            <div class="login-features">
-                <div class="login-feature">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                        <polyline points="22 4 12 14.01 9 11.01"/>
-                    </svg>
-                    <span>Access all your activities from any year</span>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Route Clustering</h3>
+                    <p class="feature-desc">Automatically groups your activities by location so you can see your favorite running spots.</p>
                 </div>
-                <div class="login-feature">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <polyline points="21 15 16 10 5 21"/>
-                    </svg>
-                    <span>Generate beautiful poster-quality images</span>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Beautiful Maps</h3>
+                    <p class="feature-desc">Generate poster-quality images with all your routes layered on a minimal map background.</p>
                 </div>
-                <div class="login-feature">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                        <circle cx="12" cy="10" r="3"/>
-                    </svg>
-                    <span>Filter by location to see city-specific routes</span>
-                </div>
-                <div class="login-feature">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/>
-                        <line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
-                    </svg>
-                    <span>Your data stays private and secure</span>
+                <div class="feature">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="20" x2="18" y2="10"/>
+                            <line x1="12" y1="20" x2="12" y2="4"/>
+                            <line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Year Stats</h3>
+                    <p class="feature-desc">View your total distance, elevation, time, and activities at a glance for the whole year.</p>
                 </div>
             </div>
         </div>
+
+        {% elif loading %}
+        <!-- Loading State (after fresh login) -->
+        <div class="loading-state" id="loadingState">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Crunching your numbers...</p>
+            <p class="loading-subtext">Fetching activities and finding your favorite spots</p>
+        </div>
+        <div class="dashboard" id="dashboard" style="display: none;"></div>
+
+        {% else %}
+        <!-- Dashboard (authenticated, not fresh) -->
+        <div class="loading-state" id="loadingState">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Loading your stats...</p>
+            <p class="loading-subtext">This will only take a moment</p>
+        </div>
+        <div class="dashboard" id="dashboard" style="display: none;"></div>
         {% endif %}
 
         <footer>
@@ -732,74 +738,233 @@
         </footer>
     </div>
 
+    <!-- Preview Modal -->
+    <div class="modal-overlay" id="previewModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Your Wrap</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <img id="previewImage" class="preview-image" src="" alt="Preview">
+                <div class="modal-actions">
+                    <a id="downloadBtn" class="btn-download" download="strava-wrapped.png">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download Image
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {% if authenticated %}
     <script>
-        const form = document.getElementById('wrapForm');
-        const generateBtn = document.getElementById('generateBtn');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const previewContent = document.getElementById('previewContent');
-        const placeholder = document.getElementById('placeholder');
-        const previewImage = document.getElementById('previewImage');
-        const statsBar = document.getElementById('statsBar');
-        const errorMessage = document.getElementById('errorMessage');
+        const activityIcons = {
+            'Run': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 4v5l5 5M4 21l5-5 5-5-3-3m8 8l-4-4"/></svg>',
+            'Ride': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h3"/></svg>',
+            'Hike': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="M14.5 4h-5L7 7l3 3-2 5.5 3 1.5 3-1.5-2-5.5 3-3z"/></svg>',
+            'Walk': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1.5"/><path d="M9 20l3-6v-5l-3-3m6 14l-3-6"/></svg>',
+            'Swim': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12c1-1 2-2 4-2s3 1 4 2 2 2 4 2 3-1 4-2 2-2 4-2"/><path d="M2 20c1-1 2-2 4-2s3 1 4 2 2 2 4 2 3-1 4-2 2-2 4-2"/><circle cx="10" cy="6" r="2"/><path d="M10 8v4l3 3"/></svg>',
+            'default': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>'
+        };
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // Reset UI
-            errorMessage.classList.remove('visible');
-            generateBtn.classList.add('loading');
-            generateBtn.disabled = true;
-            
+        async function loadStats() {
             try {
-                const formData = new FormData(form);
+                const response = await fetch('/api/stats');
+                const data = await response.json();
                 
-                const response = await fetch('/generate', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    // Show image
-                    previewImage.src = result.image_url;
-                    previewImage.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    previewContent.classList.add('has-image');
-                    
-                    // Show download button
-                    downloadBtn.href = result.image_url;
-                    downloadBtn.classList.add('visible');
-                    
-                    // Show stats
-                    if (result.stats) {
-                        document.getElementById('statActivities').textContent = result.activities_count || '-';
-                        document.getElementById('statDistance').textContent = 
-                            result.stats.total_distance 
-                                ? Math.round(result.stats.total_distance / 1000) + 'km' 
-                                : '-';
-                        document.getElementById('statElevation').textContent = 
-                            result.stats.total_elevation_gain 
-                                ? Math.round(result.stats.total_elevation_gain) + 'm' 
-                                : '-';
-                        document.getElementById('statTime').textContent = 
-                            result.stats.total_moving_time 
-                                ? Math.round(result.stats.total_moving_time / 3600) + 'h' 
-                                : '-';
-                        statsBar.classList.add('visible');
-                    }
-                } else {
-                    throw new Error(result.error || 'Failed to generate wrap');
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load stats');
                 }
+                
+                renderDashboard(data);
             } catch (error) {
-                errorMessage.textContent = error.message;
-                errorMessage.classList.add('visible');
-            } finally {
-                generateBtn.classList.remove('loading');
-                generateBtn.disabled = false;
+                console.error('Error loading stats:', error);
+                document.getElementById('loadingState').innerHTML = `
+                    <div class="error-banner">
+                        Failed to load stats: ${error.message}
+                        <br><br>
+                        <a href="/" style="color: var(--strava-orange);">Try again</a>
+                    </div>
+                `;
             }
+        }
+
+        function renderDashboard(data) {
+            const dashboard = document.getElementById('dashboard');
+            const loading = document.getElementById('loadingState');
+            
+            const html = `
+                <div class="welcome-section">
+                    <h1 class="welcome-title">Hey ${data.athlete.firstname}! <span class="welcome-year">${data.year}</span></h1>
+                    <p class="welcome-subtitle">Here's your year in motion. Click on any area to generate your wrap!</p>
+                </div>
+
+                <div class="rankings">
+                    ${data.top_activities.map((activity, index) => `
+                        <div class="ranking-pill">
+                            <span class="ranking-number">#${index + 1}</span>
+                            <span class="ranking-icon">${activityIcons[activity.type] || activityIcons.default}</span>
+                            <span class="ranking-name">${activity.type}</span>
+                            <span class="ranking-count">${activity.count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="total-stats">
+                    <div class="stat-card">
+                        <div class="stat-value">${data.total_stats.activities}</div>
+                        <div class="stat-label">Activities</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.total_stats.distance_km}</div>
+                        <div class="stat-label">Kilometers</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${Math.round(data.total_stats.elevation_m).toLocaleString()}</div>
+                        <div class="stat-label">Meters Climbed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.total_stats.time_hours}</div>
+                        <div class="stat-label">Hours</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${data.total_stats.kudos}</div>
+                        <div class="stat-label">Kudos</div>
+                    </div>
+                </div>
+
+                <div class="activity-section">
+                    <h2 class="section-title">Your Activities</h2>
+                    ${data.top_activities.map(activity => `
+                        <div class="activity-type-card">
+                            <div class="activity-header">
+                                <div class="activity-type-name">
+                                    <div class="activity-type-icon">
+                                        ${activityIcons[activity.type] || activityIcons.default}
+                                    </div>
+                                    ${activity.type}
+                                </div>
+                                <div class="activity-stats">
+                                    <div class="activity-stat">
+                                        <div class="activity-stat-value">${activity.count}</div>
+                                        <div class="activity-stat-label">Activities</div>
+                                    </div>
+                                    <div class="activity-stat">
+                                        <div class="activity-stat-value">${activity.distance_km} km</div>
+                                        <div class="activity-stat-label">Distance</div>
+                                    </div>
+                                    <div class="activity-stat">
+                                        <div class="activity-stat-value">${activity.elevation_m} m</div>
+                                        <div class="activity-stat-label">Elevation</div>
+                                    </div>
+                                    <div class="activity-stat">
+                                        <div class="activity-stat-value">${activity.time_hours} hrs</div>
+                                        <div class="activity-stat-label">Time</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="clusters-section">
+                                <div class="clusters-title">Generate wrap by location</div>
+                                <div class="clusters-grid">
+                                    ${activity.clusters.length > 0 
+                                        ? activity.clusters.map(cluster => `
+                                            <button class="cluster-btn ${cluster.id === 'all' ? 'cluster-all' : ''}" 
+                                                onclick="generateCluster('${activity.type}', '${cluster.name}', ${JSON.stringify(cluster.activity_ids).replace(/"/g, '&quot;')})">
+                                                <span class="cluster-name">${cluster.name}</span>
+                                                <span class="cluster-count">${cluster.count}</span>
+                                            </button>
+                                        `).join('')
+                                        : '<p class="no-clusters">No GPS data available for these activities</p>'
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            dashboard.innerHTML = html;
+            loading.style.display = 'none';
+            dashboard.style.display = 'block';
+        }
+
+        async function generateCluster(activityType, clusterName, activityIds) {
+            // Find the button and show loading state
+            const buttons = document.querySelectorAll('.cluster-btn');
+            let clickedBtn = null;
+            buttons.forEach(btn => {
+                if (btn.textContent.includes(clusterName)) {
+                    clickedBtn = btn;
+                    btn.classList.add('loading');
+                    btn.innerHTML = `<span class="spinner"></span> Generating...`;
+                }
+            });
+
+            try {
+                const response = await fetch('/api/generate-cluster', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        activity_type: activityType,
+                        activity_ids: activityIds,
+                        cluster_name: clusterName,
+                        img_width: 1500
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to generate image');
+                }
+
+                // Show modal with preview
+                showModal(clusterName, data.image_url);
+
+            } catch (error) {
+                alert('Error generating wrap: ' + error.message);
+            } finally {
+                // Reset button
+                if (clickedBtn) {
+                    clickedBtn.classList.remove('loading');
+                    clickedBtn.innerHTML = `<span class="cluster-name">${clusterName}</span><span class="cluster-count">${activityIds.length}</span>`;
+                }
+            }
+        }
+
+        function showModal(title, imageUrl) {
+            document.getElementById('modalTitle').textContent = title + ' Wrap';
+            document.getElementById('previewImage').src = imageUrl;
+            document.getElementById('downloadBtn').href = imageUrl;
+            document.getElementById('previewModal').classList.add('visible');
+        }
+
+        function closeModal() {
+            document.getElementById('previewModal').classList.remove('visible');
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
         });
+
+        // Close modal on overlay click
+        document.getElementById('previewModal').addEventListener('click', (e) => {
+            if (e.target.id === 'previewModal') closeModal();
+        });
+
+        // Load stats on page load
+        loadStats();
     </script>
     {% endif %}
 </body>
