@@ -61,6 +61,10 @@
             box-sizing: border-box;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
             font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-dark);
@@ -486,6 +490,16 @@
             border: 1px solid var(--border-color);
             border-radius: 100px;
             font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .ranking-pill:hover {
+            border-color: var(--strava-orange);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--strava-orange-glow);
         }
 
         .ranking-number {
@@ -1211,12 +1225,12 @@
 
                 <div class="rankings">
                     ${data.top_activities.map((activity, index) => `
-                        <div class="ranking-pill">
+                        <a href="#activity-${activity.type.toLowerCase().replace(/\s+/g, '-')}" class="ranking-pill">
                             <span class="ranking-number">#${index + 1}</span>
                             <span class="ranking-icon">${activityIcons[activity.type] || activityIcons.default}</span>
                             <span class="ranking-name">${activity.type}</span>
                             <span class="ranking-count">${activity.count}</span>
-                        </div>
+                        </a>
                     `).join('')}
                 </div>
 
@@ -1246,7 +1260,7 @@
                 <div class="activity-section">
                     <h2 class="section-title">Your Activities</h2>
                     ${data.top_activities.map(activity => `
-                        <div class="activity-type-card">
+                        <div class="activity-type-card" id="activity-${activity.type.toLowerCase().replace(/\s+/g, '-')}">
                             <div class="activity-header">
                                 <div class="activity-type-name">
                                     <div class="activity-type-icon">
