@@ -16,6 +16,155 @@ import requests
 from io import BytesIO
 import math
 import time
+import os
+import hashlib
+from pathlib import Path
+
+
+class TileCache:
+    """Disk-based cache for map tiles to reduce bandwidth and improve performance"""
+    
+    # Default cache directory (can be overridden)
+    DEFAULT_CACHE_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '.tile_cache')
+    
+    # Cache expiration in seconds (30 days by default, tiles rarely change)
+    CACHE_EXPIRY_SECONDS = 30 * 24 * 60 * 60
+    
+    def __init__(self, cache_dir=None):
+        """
+        Initialize tile cache
+        
+        Args:
+            cache_dir: Directory to store cached tiles (default: .tile_cache in project root)
+        """
+        self.cache_dir = Path(cache_dir or self.DEFAULT_CACHE_DIR)
+        self._ensure_cache_dir()
+    
+    def _ensure_cache_dir(self):
+        """Create cache directory if it doesn't exist"""
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    def _get_cache_key(self, provider_name, zoom, x, y):
+        """Generate a unique cache key for a tile"""
+        key_str = f"{provider_name}_{zoom}_{x}_{y}"
+        return hashlib.md5(key_str.encode()).hexdigest()
+    
+    def _get_cache_path(self, provider_name, zoom, x, y):
+        """Get the file path for a cached tile"""
+        cache_key = self._get_cache_key(provider_name, zoom, x, y)
+        # Organize by provider and zoom level for easier management
+        provider_dir = self.cache_dir / provider_name.replace(' ', '_').lower()
+        zoom_dir = provider_dir / str(zoom)
+        zoom_dir.mkdir(parents=True, exist_ok=True)
+        return zoom_dir / f"{cache_key}.png"
+    
+    def get(self, provider_name, zoom, x, y):
+        """
+        Get a tile from cache if it exists and is not expired
+        
+        Args:
+            provider_name: Name of the tile provider
+            zoom: Zoom level
+            x: Tile X coordinate
+            y: Tile Y coordinate
+        
+        Returns:
+            PIL Image if cached and valid, None otherwise
+        """
+        cache_path = self._get_cache_path(provider_name, zoom, x, y)
+        
+        if not cache_path.exists():
+            return None
+        
+        # Check if cache is expired
+        file_age = time.time() - cache_path.stat().st_mtime
+        if file_age > self.CACHE_EXPIRY_SECONDS:
+            # Cache expired, remove it
+            try:
+                cache_path.unlink()
+            except:
+                pass
+            return None
+        
+        # Load and return the cached tile
+        try:
+            return Image.open(cache_path)
+        except Exception:
+            # Corrupted cache file, remove it
+            try:
+                cache_path.unlink()
+            except:
+                pass
+            return None
+    
+    def put(self, provider_name, zoom, x, y, image):
+        """
+        Store a tile in the cache
+        
+        Args:
+            provider_name: Name of the tile provider
+            zoom: Zoom level
+            x: Tile X coordinate
+            y: Tile Y coordinate
+            image: PIL Image to cache
+        """
+        cache_path = self._get_cache_path(provider_name, zoom, x, y)
+        try:
+            image.save(cache_path, 'PNG')
+        except Exception:
+            # Failed to cache, not critical
+            pass
+    
+    def get_stats(self):
+        """Get cache statistics"""
+        total_files = 0
+        total_size = 0
+        
+        for path in self.cache_dir.rglob('*.png'):
+            total_files += 1
+            total_size += path.stat().st_size
+        
+        return {
+            'files': total_files,
+            'size_mb': round(total_size / (1024 * 1024), 2)
+        }
+    
+    def clear(self, max_age_days=None):
+        """
+        Clear the cache
+        
+        Args:
+            max_age_days: If provided, only clear tiles older than this many days
+        """
+        if max_age_days is None:
+            # Clear everything
+            import shutil
+            try:
+                shutil.rmtree(self.cache_dir)
+                self._ensure_cache_dir()
+            except:
+                pass
+        else:
+            # Clear only old files
+            max_age_seconds = max_age_days * 24 * 60 * 60
+            for path in self.cache_dir.rglob('*.png'):
+                try:
+                    file_age = time.time() - path.stat().st_mtime
+                    if file_age > max_age_seconds:
+                        path.unlink()
+                except:
+                    pass
+
+
+# Global tile cache instance
+_tile_cache = None
+
+def get_tile_cache():
+    """Get or create the global tile cache instance"""
+    global _tile_cache
+    if _tile_cache is None:
+        _tile_cache = TileCache()
+    return _tile_cache
 
 
 class ImageProcessor:
@@ -521,7 +670,11 @@ class ImageProcessor:
         
         headers = {'User-Agent': 'StravaWrapped/1.0 (Strava Activity Mapper)'}
         tiles_downloaded = 0
+        tiles_from_cache = 0
         provider_used = None
+        
+        # Get tile cache
+        tile_cache = get_tile_cache()
         
         # Try each provider until one works
         for provider in tile_providers:
@@ -530,6 +683,18 @@ class ImageProcessor:
             
             for x in range(min_tile_x, max_tile_x + 1):
                 for y in range(min_tile_y, max_tile_y + 1):
+                    # Check cache first
+                    cached_tile = tile_cache.get(provider['name'], zoom, x, y)
+                    if cached_tile:
+                        paste_x = (x - min_tile_x) * tile_size
+                        paste_y = (y - min_tile_y) * tile_size
+                        map_img.paste(cached_tile, (paste_x, paste_y))
+                        tiles_downloaded += 1
+                        tiles_from_cache += 1
+                        provider_used = provider['name']
+                        continue  # Move to next tile
+                    
+                    # Not in cache, download it
                     # Try different subdomains
                     for subdomain in provider['subdomains']:
                         tile_url = provider['url'].replace('{s}', subdomain).format(z=zoom, x=x, y=y)
@@ -542,12 +707,17 @@ class ImageProcessor:
                                 map_img.paste(tile, (paste_x, paste_y))
                                 tiles_downloaded += 1
                                 provider_used = provider['name']
-                                time.sleep(0.05)  # Small delay
+                                
+                                # Cache the tile for future use
+                                tile_cache.put(provider['name'], zoom, x, y, tile)
+                                
+                                time.sleep(0.05)  # Small delay between downloads
                                 break  # Success, move to next tile
                         except:
                             continue  # Try next subdomain
         
-        print(f"    ✓ Downloaded {tiles_downloaded}/{tiles_wide * tiles_high} tiles from {provider_used}, processing...")
+        cache_info = f" ({tiles_from_cache} from cache)" if tiles_from_cache > 0 else ""
+        print(f"    ✓ Loaded {tiles_downloaded}/{tiles_wide * tiles_high} tiles from {provider_used}{cache_info}, processing...")
         
         if tiles_downloaded == 0:
             raise Exception("No map tiles could be downloaded from any provider")
