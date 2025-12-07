@@ -449,22 +449,6 @@
             transform: translateY(-2px);
         }
 
-        .cluster-btn.cluster-all {
-            background: linear-gradient(135deg, var(--strava-orange) 0%, var(--strava-orange-dark) 100%);
-            border-color: var(--strava-orange);
-            color: white;
-        }
-
-        .cluster-btn.cluster-all .cluster-count {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-
-        .cluster-btn.cluster-all:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 30px var(--strava-orange-glow);
-        }
-
         .cluster-btn.loading {
             opacity: 0.7;
             pointer-events: none;
@@ -878,7 +862,7 @@
                                 <div class="clusters-grid">
                                     ${activity.clusters.length > 0 
                                         ? activity.clusters.map(cluster => `
-                                            <button class="cluster-btn ${cluster.id === 'all' ? 'cluster-all' : ''}" 
+                                            <button class="cluster-btn" 
                                                 onclick="generateCluster('${activity.type}', '${cluster.name}', ${JSON.stringify(cluster.activity_ids).replace(/"/g, '&quot;')})">
                                                 <span class="cluster-name">${cluster.name}</span>
                                                 <span class="cluster-count">${cluster.count}</span>

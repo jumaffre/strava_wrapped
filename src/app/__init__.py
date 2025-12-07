@@ -442,28 +442,18 @@ def get_user_stats():
             # Find clusters (min_activities=1 to include all)
             clusters = []
             if activities_with_coords:
-                # First, add an "All" cluster with every activity
-                all_activity_ids = [a['id'] for a in activities_with_coords]
-                clusters.append({
-                    'id': 'all',
-                    'name': f"All {act_type}s",
-                    'count': len(all_activity_ids),
-                    'center': None,
-                    'activity_ids': all_activity_ids
-                })
-                
-                # Then find geographic clusters
+                # Find geographic clusters with 75km radius
                 raw_clusters = ActivityClusterer.find_areas_of_interest(
                     activities_with_coords,
-                    radius_km=5.0,
+                    radius_km=75.0,
                     min_activities=1
                 )
                 
                 # Format clusters for frontend (no limit)
                 for i, cluster in enumerate(raw_clusters):
                     center_lat, center_lon = cluster['center']
-                    # Try to get location name
-                    location_name = LocationUtils.reverse_geocode(center_lat, center_lon)
+                    # Try to get city-level location name (since clusters are 75km)
+                    location_name = LocationUtils.reverse_geocode(center_lat, center_lon, level='city')
                     clusters.append({
                         'id': i,
                         'name': location_name or f"Area {i + 1}",

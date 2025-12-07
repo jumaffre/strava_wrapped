@@ -100,7 +100,7 @@ class LocationUtils:
             return None
     
     @staticmethod
-    def reverse_geocode(lat: float, lon: float, debug: bool = False) -> Optional[str]:
+    def reverse_geocode(lat: float, lon: float, debug: bool = False, level: str = 'city') -> Optional[str]:
         """
         Convert coordinates to a human-readable location name using Nominatim
         
@@ -108,17 +108,21 @@ class LocationUtils:
             lat: Latitude
             lon: Longitude
             debug: Enable debug output
+            level: 'city' for broad names (London), 'neighborhood' for specific (Somerstown)
         
         Returns:
             Location name string or None if not found
         """
         url = "https://nominatim.openstreetmap.org/reverse"
         
+        # Zoom level: 10 = city/region, 14 = neighborhood
+        zoom = 10 if level == 'city' else 14
+        
         params = {
             'lat': lat,
             'lon': lon,
             'format': 'json',
-            'zoom': 14,  # City/town level
+            'zoom': zoom,
             'addressdetails': 1
         }
         
@@ -138,20 +142,31 @@ class LocationUtils:
             if 'error' in result:
                 return None
             
-            # Try to get a nice short name
             address = result.get('address', {})
             
-            # Priority order for location name
-            name = (
-                address.get('suburb') or
-                address.get('neighbourhood') or
-                address.get('village') or
-                address.get('town') or
-                address.get('city_district') or
-                address.get('city') or
-                address.get('municipality') or
-                result.get('name')
-            )
+            if level == 'city':
+                # Priority order for broad/city-level names
+                name = (
+                    address.get('city') or
+                    address.get('town') or
+                    address.get('municipality') or
+                    address.get('county') or
+                    address.get('state') or
+                    address.get('region') or
+                    result.get('name')
+                )
+            else:
+                # Priority order for neighborhood-level names
+                name = (
+                    address.get('suburb') or
+                    address.get('neighbourhood') or
+                    address.get('village') or
+                    address.get('town') or
+                    address.get('city_district') or
+                    address.get('city') or
+                    address.get('municipality') or
+                    result.get('name')
+                )
             
             if debug and name:
                 print(f"[DEBUG] Found location: {name}")
