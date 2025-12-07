@@ -22,6 +22,3 @@ __pycache__/
 
 # Generated images
 *.png
-
-# Tile cache
-tile_cache/

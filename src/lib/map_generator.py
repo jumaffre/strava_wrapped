@@ -16,75 +16,6 @@ import requests
 from io import BytesIO
 import math
 import time
-import os
-import hashlib
-from pathlib import Path
-
-
-class TileCache:
-    """Cache map tiles to disk to avoid repeated downloads"""
-    
-    # Default cache directory
-    CACHE_DIR = Path(__file__).parent.parent.parent / 'tile_cache'
-    
-    @classmethod
-    def set_cache_dir(cls, path):
-        """Set custom cache directory"""
-        cls.CACHE_DIR = Path(path)
-    
-    @classmethod
-    def _get_tile_path(cls, provider_name, zoom, x, y):
-        """Get the cache path for a tile"""
-        # Sanitize provider name for filesystem
-        safe_provider = provider_name.replace(' ', '_').replace('/', '_')
-        cache_path = cls.CACHE_DIR / safe_provider / str(zoom) / str(x)
-        cache_path.mkdir(parents=True, exist_ok=True)
-        return cache_path / f"{y}.png"
-    
-    @classmethod
-    def get_tile(cls, provider_name, zoom, x, y):
-        """Get tile from cache if exists"""
-        tile_path = cls._get_tile_path(provider_name, zoom, x, y)
-        if tile_path.exists():
-            try:
-                return Image.open(tile_path)
-            except:
-                return None
-        return None
-    
-    @classmethod
-    def save_tile(cls, provider_name, zoom, x, y, image):
-        """Save tile to cache"""
-        tile_path = cls._get_tile_path(provider_name, zoom, x, y)
-        try:
-            image.save(tile_path, 'PNG')
-        except Exception as e:
-            print(f"    Warning: Could not cache tile: {e}")
-    
-    @classmethod
-    def get_cache_stats(cls):
-        """Get cache statistics"""
-        if not cls.CACHE_DIR.exists():
-            return {"total_tiles": 0, "size_mb": 0}
-        
-        total_tiles = 0
-        total_size = 0
-        for png_file in cls.CACHE_DIR.rglob("*.png"):
-            total_tiles += 1
-            total_size += png_file.stat().st_size
-        
-        return {
-            "total_tiles": total_tiles,
-            "size_mb": round(total_size / (1024 * 1024), 2)
-        }
-    
-    @classmethod
-    def clear_cache(cls):
-        """Clear all cached tiles"""
-        import shutil
-        if cls.CACHE_DIR.exists():
-            shutil.rmtree(cls.CACHE_DIR)
-            print(f"✓ Cleared tile cache")
 
 
 class ImageProcessor:
@@ -590,53 +521,36 @@ class ImageProcessor:
         
         headers = {'User-Agent': 'StravaWrapped/1.0 (Strava Activity Mapper)'}
         tiles_downloaded = 0
-        tiles_from_cache = 0
         provider_used = None
-        total_tiles = tiles_wide * tiles_high
         
         # Try each provider until one works
         for provider in tile_providers:
-            if tiles_downloaded > 0 or tiles_from_cache > 0:
+            if tiles_downloaded > 0:
                 break
             
             for x in range(min_tile_x, max_tile_x + 1):
                 for y in range(min_tile_y, max_tile_y + 1):
-                    paste_x = (x - min_tile_x) * tile_size
-                    paste_y = (y - min_tile_y) * tile_size
-                    
-                    # Check cache first
-                    cached_tile = TileCache.get_tile(provider['name'], zoom, x, y)
-                    if cached_tile:
-                        map_img.paste(cached_tile, (paste_x, paste_y))
-                        tiles_from_cache += 1
-                        provider_used = provider['name']
-                        continue
-                    
-                    # Not in cache, download it
+                    # Try different subdomains
                     for subdomain in provider['subdomains']:
                         tile_url = provider['url'].replace('{s}', subdomain).format(z=zoom, x=x, y=y)
                         try:
                             response = requests.get(tile_url, headers=headers, timeout=10)
                             if response.status_code == 200:
                                 tile = Image.open(BytesIO(response.content))
+                                paste_x = (x - min_tile_x) * tile_size
+                                paste_y = (y - min_tile_y) * tile_size
                                 map_img.paste(tile, (paste_x, paste_y))
                                 tiles_downloaded += 1
                                 provider_used = provider['name']
-                                
-                                # Save to cache for next time
-                                TileCache.save_tile(provider['name'], zoom, x, y, tile)
-                                
-                                time.sleep(0.05)  # Small delay between downloads
+                                time.sleep(0.05)  # Small delay
                                 break  # Success, move to next tile
                         except:
                             continue  # Try next subdomain
         
-        total_loaded = tiles_downloaded + tiles_from_cache
-        cache_info = f" ({tiles_from_cache} cached, {tiles_downloaded} downloaded)" if tiles_from_cache > 0 else ""
-        print(f"    ✓ Loaded {total_loaded}/{total_tiles} tiles from {provider_used}{cache_info}, processing...")
+        print(f"    ✓ Downloaded {tiles_downloaded}/{tiles_wide * tiles_high} tiles from {provider_used}, processing...")
         
-        if total_loaded == 0:
-            raise Exception("No map tiles could be loaded from cache or downloaded")
+        if tiles_downloaded == 0:
+            raise Exception("No map tiles could be downloaded from any provider")
         
         # Apply CLEAN minimal processing (no blur - tiles already have no labels!)
         # 1. Reduce saturation (make it more B&W)
