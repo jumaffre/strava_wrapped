@@ -85,3 +85,69 @@ If you get permission errors with generated images, you may need to adjust permi
 chmod -R 777 static/generated
 ```
 
+---
+
+## 🌍 Deploying to the Internet (Free!)
+
+Want to share your Strava Wrapped instance with friends? Use **Cloudflare Tunnel** to expose your local app to the internet for free!
+
+### Quick Tunnel (Testing - URL changes each time)
+
+```bash
+# 1. Download cloudflared
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+chmod +x cloudflared
+
+# 2. Start the tunnel (assumes app is running on port 5556)
+./cloudflared tunnel --url http://localhost:5556
+```
+
+You'll get a URL like: `https://random-words.trycloudflare.com`
+
+### Update Strava API Settings
+
+1. Go to https://www.strava.com/settings/api
+2. Click **Edit**
+3. Set **Authorization Callback Domain** to: `trycloudflare.com`
+4. Save
+
+### Update Your .env
+
+```bash
+STRAVA_REDIRECT_URI=https://your-tunnel-url.trycloudflare.com/callback
+```
+
+Then restart Docker:
+```bash
+docker-compose restart
+```
+
+### Permanent Tunnel (Production - Fixed URL)
+
+For a permanent URL that doesn't change:
+
+1. Create a free Cloudflare account at https://cloudflare.com
+2. Set up a named tunnel:
+
+```bash
+# Login to Cloudflare
+./cloudflared tunnel login
+
+# Create a named tunnel
+./cloudflared tunnel create strava-wrapped
+
+# Route traffic (requires a domain on Cloudflare)
+./cloudflared tunnel route dns strava-wrapped wrapped.yourdomain.com
+
+# Run the tunnel
+./cloudflared tunnel run strava-wrapped
+```
+
+### Run Tunnel as a Service (Auto-start on boot)
+
+```bash
+sudo ./cloudflared service install
+sudo systemctl enable cloudflared
+sudo systemctl start cloudflared
+```
+
