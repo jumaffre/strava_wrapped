@@ -18,7 +18,30 @@ import math
 import time
 import os
 import hashlib
+import urllib.parse
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Mapbox configuration - get free token at https://mapbox.com
+MAPBOX_ACCESS_TOKEN = os.getenv('MAPBOX_ACCESS_TOKEN', '').strip()
+
+# Mapbox Standard style with light presets for beautiful, stylized maps
+# The 'faded' theme with 'dawn' preset creates a warm, golden-hour aesthetic
+# See: https://docs.mapbox.com/mapbox-gl-js/guides/styles/
+MAPBOX_STYLE = 'mapbox/standard'
+MAPBOX_LIGHT_PRESET = 'dawn'  # Options: dawn, day, dusk, night
+
+# Fallback styles (without light presets)
+MAPBOX_STYLES = {
+    'standard': 'mapbox/standard',          # New standard style with light presets
+    'outdoors': 'mapbox/outdoors-v12',      # Beautiful terrain with trails, parks, water
+    'light': 'mapbox/light-v11',            # Minimal light gray style  
+    'streets': 'mapbox/streets-v12',        # Standard streets
+    'dark': 'mapbox/dark-v11',              # Dark mode
+}
 
 
 class TileCache:
@@ -742,20 +765,18 @@ class ImageProcessor:
         return (min_lat, max_lat, min_lon, max_lon)
     
     @staticmethod
-    def create_minimal_map_background(coordinates, width, height, 
-                                       saturation=0.15, brightness=1.0, contrast=0.85):
+    def create_minimal_map_background(coordinates, width, height):
         """
-        Create a minimal, artsy map background with NO LABELS
+        Create a beautiful map background using Mapbox Standard style with dawn light preset.
         
-        Uses CartoDB Positron NoLabels (no text, just geography) heavily processed
+        Uses Mapbox's 'faded' theme with 'dawn' lighting for a warm, golden-hour aesthetic.
+        The style is professionally designed and needs no post-processing.
+        Falls back to CartoDB if no Mapbox token is configured.
         
         Args:
             coordinates: List of [lat, lon] pairs for route bounds
             width: Output image width in pixels
             height: Output image height in pixels
-            saturation: Color saturation (0.0-1.0, lower = more muted)
-            brightness: Brightness adjustment (0.5-1.5, higher = brighter)
-            contrast: Contrast level (0.0-1.5, higher = more defined)
         
         Returns:
             Tuple of (PIL Image, (min_lon, max_lon, min_lat, max_lat)) - image and actual tile extent
@@ -767,6 +788,9 @@ class ImageProcessor:
         lat_range = max_lat - min_lat
         lon_range = max_lon - min_lon
         
+        # Determine if using Mapbox (higher quality 512px tiles)
+        use_mapbox = bool(MAPBOX_ACCESS_TOKEN)
+        
         # Estimate zoom level
         if max(lat_range, lon_range) > 1:
             zoom = 10
@@ -776,8 +800,10 @@ class ImageProcessor:
             zoom = 12
         elif max(lat_range, lon_range) > 0.05:
             zoom = 13
-        else:
+        elif max(lat_range, lon_range) > 0.02:
             zoom = 14
+        else:
+            zoom = 15
         
         # Get tile coordinates for corners
         min_tile_x, max_tile_y = ImageProcessor.lat_lon_to_tile(min_lat, min_lon, zoom)
@@ -812,39 +838,58 @@ class ImageProcessor:
                     max_tile_y += expand // 2
                     min_tile_y -= (expand - expand // 2)
         
-        # Tile configuration
-        tile_size = 256
+        # Recalculate tile counts
         tiles_wide = max_tile_x - min_tile_x + 1
         tiles_high = max_tile_y - min_tile_y + 1
+        
+        # Mapbox uses 512px tiles with @2x (1024px effective), CartoDB uses 256px
+        if use_mapbox:
+            tile_size = 1024  # 512 @2x
+            print(f"    Using Mapbox Standard style with '{MAPBOX_LIGHT_PRESET}' light preset")
+        else:
+            tile_size = 256
+            print(f"    Using CartoDB (set MAPBOX_ACCESS_TOKEN for better quality)")
         
         print(f"    Zoom: {zoom}, downloading {tiles_wide * tiles_high} tiles...")
         
         # Create canvas
-        map_img = Image.new('RGB', (tiles_wide * tile_size, tiles_high * tile_size), (250, 250, 250))
+        map_img = Image.new('RGB', (tiles_wide * tile_size, tiles_high * tile_size), (250, 248, 240))
         
-        # Try multiple tile providers that have NO LABELS versions
-        tile_providers = [
+        # Build tile providers list
+        tile_providers = []
+        
+        if use_mapbox:
+            # Mapbox Standard style with dawn light preset for faded, warm aesthetic
+            # The config parameter sets the light preset
+            config = urllib.parse.quote('{"lightPreset":"' + MAPBOX_LIGHT_PRESET + '"}')
+            tile_providers.append({
+                'name': f'Mapbox Standard ({MAPBOX_LIGHT_PRESET})',
+                'url': f'https://api.mapbox.com/styles/v1/{MAPBOX_STYLE}/tiles/512/{{z}}/{{x}}/{{y}}@2x?access_token={MAPBOX_ACCESS_TOKEN}&config={config}',
+                'subdomains': [''],
+                'tile_size': 1024
+            })
+        
+        # Fallback providers
+        tile_providers.extend([
+            {
+                'name': 'CartoDB Voyager NoLabels',
+                'url': 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png',
+                'subdomains': ['a', 'b', 'c', 'd'],
+                'tile_size': 512
+            },
             {
                 'name': 'CartoDB Positron NoLabels',
                 'url': 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
-                'subdomains': ['a', 'b', 'c', 'd']
-            },
-            {
-                'name': 'CartoDB Voyager NoLabels',
-                'url': 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png',
-                'subdomains': ['a', 'b', 'c', 'd']
-            },
-            {
-                'name': 'OSM (fallback)',
-                'url': 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                'subdomains': ['']
+                'subdomains': ['a', 'b', 'c', 'd'],
+                'tile_size': 256
             }
-        ]
+        ])
         
         headers = {'User-Agent': 'StravaWrapped/1.0 (Strava Activity Mapper)'}
         tiles_downloaded = 0
         tiles_from_cache = 0
         provider_used = None
+        actual_tile_size = tile_size
         
         # Get tile cache
         tile_cache = get_tile_cache()
@@ -854,77 +899,79 @@ class ImageProcessor:
             if tiles_downloaded > 0:
                 break
             
+            provider_tile_size = provider.get('tile_size', 256)
+            
+            # Resize canvas if switching providers with different tile sizes
+            if provider_tile_size != actual_tile_size:
+                map_img = Image.new('RGB', (tiles_wide * provider_tile_size, tiles_high * provider_tile_size), (250, 248, 240))
+                actual_tile_size = provider_tile_size
+            
             for x in range(min_tile_x, max_tile_x + 1):
                 for y in range(min_tile_y, max_tile_y + 1):
                     # Check cache first
                     cached_tile = tile_cache.get(provider['name'], zoom, x, y)
                     if cached_tile:
-                        paste_x = (x - min_tile_x) * tile_size
-                        paste_y = (y - min_tile_y) * tile_size
+                        # Resize if needed
+                        if cached_tile.size[0] != provider_tile_size:
+                            cached_tile = cached_tile.resize((provider_tile_size, provider_tile_size), Image.Resampling.LANCZOS)
+                        paste_x = (x - min_tile_x) * provider_tile_size
+                        paste_y = (y - min_tile_y) * provider_tile_size
                         map_img.paste(cached_tile, (paste_x, paste_y))
                         tiles_downloaded += 1
                         tiles_from_cache += 1
                         provider_used = provider['name']
-                        continue  # Move to next tile
+                        continue
                     
                     # Not in cache, download it
-                    # Try different subdomains
                     for subdomain in provider['subdomains']:
                         tile_url = provider['url'].replace('{s}', subdomain).format(z=zoom, x=x, y=y)
                         try:
-                            response = requests.get(tile_url, headers=headers, timeout=10)
+                            response = requests.get(tile_url, headers=headers, timeout=15)
                             if response.status_code == 200:
                                 tile = Image.open(BytesIO(response.content))
-                                paste_x = (x - min_tile_x) * tile_size
-                                paste_y = (y - min_tile_y) * tile_size
+                                
+                                # Convert to RGB if needed
+                                if tile.mode != 'RGB':
+                                    tile = tile.convert('RGB')
+                                
+                                # Resize if needed
+                                if tile.size[0] != provider_tile_size:
+                                    tile = tile.resize((provider_tile_size, provider_tile_size), Image.Resampling.LANCZOS)
+                                
+                                paste_x = (x - min_tile_x) * provider_tile_size
+                                paste_y = (y - min_tile_y) * provider_tile_size
                                 map_img.paste(tile, (paste_x, paste_y))
                                 tiles_downloaded += 1
                                 provider_used = provider['name']
                                 
-                                # Cache the tile for future use
+                                # Cache the tile
                                 tile_cache.put(provider['name'], zoom, x, y, tile)
                                 
-                                time.sleep(0.05)  # Small delay between downloads
-                                break  # Success, move to next tile
-                        except:
-                            continue  # Try next subdomain
+                                time.sleep(0.02)
+                                break
+                        except Exception as e:
+                            continue
         
         cache_info = f" ({tiles_from_cache} from cache)" if tiles_from_cache > 0 else ""
-        print(f"    ✓ Loaded {tiles_downloaded}/{tiles_wide * tiles_high} tiles from {provider_used}{cache_info}, processing...")
+        print(f"    ✓ Loaded {tiles_downloaded}/{tiles_wide * tiles_high} tiles from {provider_used}{cache_info}")
         
         if tiles_downloaded == 0:
             raise Exception("No map tiles could be downloaded from any provider")
         
-        # Apply CLEAN minimal processing (no blur - tiles already have no labels!)
-        # 1. Reduce saturation (make it more B&W)
-        enhancer = ImageEnhance.Color(map_img)
-        map_img = enhancer.enhance(saturation)
-        
-        # 2. Increase brightness
-        enhancer = ImageEnhance.Brightness(map_img)
-        map_img = enhancer.enhance(brightness)
-        
-        # 3. Adjust contrast
-        enhancer = ImageEnhance.Contrast(map_img)
-        map_img = enhancer.enhance(contrast)
-        
-        # 4. Resize to target dimensions with high quality
-        # Use LANCZOS for best quality to minimize any distortion
+        # Resize to target dimensions with high quality
+        # Mapbox styles are already beautifully designed - no post-processing needed!
+        print(f"    Resizing from {map_img.size[0]}x{map_img.size[1]} to {width}x{height}...")
         map_img = map_img.resize((width, height), Image.Resampling.LANCZOS)
         
         # Calculate the actual geographic extent of the tiles
-        # Note: tile Y increases southward, so min_tile_y is NORTH (max lat)
         tile_nw_lat, tile_nw_lon = ImageProcessor.tile_to_lat_lon(min_tile_x, min_tile_y, zoom)
         tile_se_lat, tile_se_lon = ImageProcessor.tile_to_lat_lon(max_tile_x + 1, max_tile_y + 1, zoom)
         
-        # NW corner has max lat, min lon
-        # SE corner has min lat, max lon
-        actual_min_lat = tile_se_lat  # Southern edge
-        actual_max_lat = tile_nw_lat  # Northern edge
-        actual_min_lon = tile_nw_lon  # Western edge
-        actual_max_lon = tile_se_lon  # Eastern edge
+        actual_min_lat = tile_se_lat
+        actual_max_lat = tile_nw_lat
+        actual_min_lon = tile_nw_lon
+        actual_max_lon = tile_se_lon
         
-        # Return both the image and the actual tile extent (lon_min, lon_max, lat_min, lat_max)
         return (map_img, (actual_min_lon, actual_max_lon, actual_min_lat, actual_max_lat))
 
 

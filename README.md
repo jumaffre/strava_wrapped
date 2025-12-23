@@ -97,7 +97,27 @@ Create a `.env` file in the project root with your credentials:
 STRAVA_CLIENT_ID=your_client_id_here
 STRAVA_CLIENT_SECRET=your_client_secret_here
 STRAVA_REFRESH_TOKEN=your_refresh_token_here
+
+# Optional but recommended: Mapbox for beautiful stylized maps
+MAPBOX_ACCESS_TOKEN=your_mapbox_token_here
 ```
+
+### 5. (Recommended) Get Mapbox Token for Beautiful Maps
+
+For stunning, professionally-styled map backgrounds, get a free Mapbox token:
+
+1. Go to [Mapbox](https://www.mapbox.com/) and create a free account
+2. Go to your [Account page](https://account.mapbox.com/)
+3. Copy your **Default public token**
+4. Add it to your `.env` file as `MAPBOX_ACCESS_TOKEN`
+
+**Available Mapbox styles:**
+- `outdoors` - Beautiful terrain with trails, parks, and water (default)
+- `light` - Minimal light gray style
+- `streets` - Standard street map
+- `dark` - Dark mode
+
+The free tier includes 200,000 tile requests/month - plenty for personal use!
 
 ## Usage
 
