@@ -520,6 +520,29 @@ def get_user_stats():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def pluralize_activity_type(activity_type, count):
+    """Return singular or plural form of activity type based on count."""
+    if count == 1:
+        return activity_type
+    
+    # Handle special cases
+    plurals = {
+        'Run': 'Runs',
+        'Ride': 'Rides',
+        'Hike': 'Hikes',
+        'Walk': 'Walks',
+        'Swim': 'Swims',
+        'Ski': 'Skis',
+    }
+    
+    # Check if it's a known type
+    if activity_type in plurals:
+        return plurals[activity_type]
+    
+    # Default: add 's' for plural
+    return activity_type + 's'
+
+
 @app.route('/api/generate-cluster', methods=['POST'])
 def generate_cluster_image():
     """Generate wrap image for a specific cluster."""
@@ -567,13 +590,18 @@ def generate_cluster_image():
         filename = f"wrap_{uuid.uuid4().hex[:8]}.png"
         output_path = OUTPUT_DIR / filename
         
+        # Create title with activity type (e.g., "Greater London Rides")
+        activity_count = len(activities_data)
+        activity_type_text = pluralize_activity_type(activity_type, activity_count)
+        image_title = f"{cluster_name} {activity_type_text}"
+        
         from src.lib.map_generator import MapGenerator
         
         MapGenerator.create_multi_activity_image(
             activities_data,
             output_file=str(output_path),
             smoothing='medium',
-            line_width=5,  # Slightly thicker for higher res
+            line_width=2,  # Thin, crisp lines
             width_px=img_width,
             show_markers=False,
             use_map_background=True,
@@ -581,7 +609,7 @@ def generate_cluster_image():
             force_square=True,
             add_border=False,
             stats_data=None,
-            title=cluster_name  # Add title overlay
+            title=image_title
         )
         
         image_url = f'/static/generated/{filename}'

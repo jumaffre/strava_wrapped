@@ -296,7 +296,7 @@ def generate_wrap_image(strava, request: WrapGenerationRequest) -> WrapGeneratio
     stats = calculate_statistics(stats_activities) if request.include_stats else None
 
     style = request.style
-    line_width = style.line_width if style.line_width is not None else 10
+    line_width = style.line_width if style.line_width is not None else 3
     single_color = None
     if style.color_override:
         single_color = style.color_override

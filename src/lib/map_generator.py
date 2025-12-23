@@ -1461,7 +1461,7 @@ class MapGenerator:
         return output_file
     
     def create_image(self, output_file="activity_image.png", smoothing='medium', 
-                     line_color='#FC4C02', line_width=10, width_px=5000, 
+                     line_color='#FC4C02', line_width=3, width_px=5000, 
                      background_color='white', dpi=100, background_image_url=None,
                      force_square=False, show_markers=True, marker_size=20,
                      use_map_background=False, add_border=False, stats_data=None):
@@ -1618,7 +1618,7 @@ class MapGenerator:
     
     @staticmethod
     def create_multi_activity_image(activities_data, output_file="multi_activity_image.png",
-                                     smoothing='medium', line_width=10, width_px=5000,
+                                     smoothing='medium', line_width=3, width_px=5000,
                                      background_color='white', show_markers=True, dpi=100,
                                      background_image_url=None, force_square=False, marker_size=15,
                                      use_map_background=False, single_color=None, add_border=False,
@@ -1785,7 +1785,7 @@ class MapGenerator:
             
             ax.plot(coords[:, 1], coords[:, 0], color=color, linewidth=line_width,
                    solid_capstyle='round', solid_joinstyle='round', 
-                   antialiased=True, alpha=0.7)
+                   antialiased=True, alpha=0.9)
             
             # Add markers if requested
             if show_markers and len(coords) > 0:
