@@ -417,8 +417,14 @@ def get_user_stats():
             'Handcycle', 'Velomobile', 'Wheelchair', 'Nordic Ski', 'Alpine Ski',
             'Backcountry Ski', 'Snowboard', 'Snowshoe', 'Ice Skate', 'Inline Skate',
             'Roller Ski', 'Kayaking', 'Kitesurf', 'Rowing', 'Stand Up Paddling',
-            'Surf', 'Windsurf', 'Canoe', 'Sail', 'Golf', 'Skateboard'
+            'Surf', 'Windsurf', 'Canoe', 'Sail', 'Golf', 'Skateboard',
+            'Open Water Swim'  # Only open water swims have GPS (pool swims don't)
         }
+        
+        # Types that count for triathlon detection
+        TRIATHLON_SWIM_TYPES = {'Swim', 'Open Water Swim'}
+        TRIATHLON_BIKE_TYPES = {'Ride', 'Gravel Ride', 'Mountain Bike Ride', 'E-Bike Ride'}
+        TRIATHLON_RUN_TYPES = {'Run', 'Trail Run'}
         
         # Group by activity type (only types with GPS)
         activity_types = {}
@@ -489,6 +495,94 @@ def get_user_stats():
                 'clusters': clusters
             })
         
+        # Detect triathlon events (swim + bike + run on same day)
+        logger.info("🏊‍♂️🚴‍♂️🏃‍♂️ Detecting triathlon events...")
+        activities_by_date = {}
+        for activity in all_activities:
+            act_type = activity.get('type', '')
+            date = activity.get('start_date_local', '')[:10]  # YYYY-MM-DD
+            if date:
+                if date not in activities_by_date:
+                    activities_by_date[date] = {'swim': [], 'bike': [], 'run': []}
+                
+                if act_type in TRIATHLON_SWIM_TYPES:
+                    activities_by_date[date]['swim'].append(activity)
+                elif act_type in TRIATHLON_BIKE_TYPES:
+                    activities_by_date[date]['bike'].append(activity)
+                elif act_type in TRIATHLON_RUN_TYPES:
+                    activities_by_date[date]['run'].append(activity)
+        
+        # Find triathlon days (must have at least one of each)
+        triathlon_events = []
+        for date, day_activities in activities_by_date.items():
+            if day_activities['swim'] and day_activities['bike'] and day_activities['run']:
+                # This is a triathlon day!
+                all_tri_activities = (
+                    day_activities['swim'] + 
+                    day_activities['bike'] + 
+                    day_activities['run']
+                )
+                triathlon_events.append({
+                    'date': date,
+                    'activities': all_tri_activities,
+                    'swim_count': len(day_activities['swim']),
+                    'bike_count': len(day_activities['bike']),
+                    'run_count': len(day_activities['run'])
+                })
+        
+        if triathlon_events:
+            logger.info(f"🏆 Found {len(triathlon_events)} triathlon event(s)!")
+            
+            # Calculate total stats for triathlons
+            tri_distance = 0
+            tri_elevation = 0
+            tri_time = 0
+            tri_clusters = []
+            
+            for i, event in enumerate(triathlon_events):
+                # Get total stats for this triathlon
+                event_distance = sum(a.get('distance', 0) for a in event['activities'])
+                event_elevation = sum(a.get('total_elevation_gain', 0) for a in event['activities'])
+                event_time = sum(a.get('moving_time', 0) for a in event['activities'])
+                
+                tri_distance += event_distance
+                tri_elevation += event_elevation
+                tri_time += event_time
+                
+                # Get location from the first activity with GPS
+                center_lat, center_lon = None, None
+                for act in event['activities']:
+                    start_latlng = act.get('start_latlng')
+                    if start_latlng and len(start_latlng) == 2:
+                        center_lat, center_lon = start_latlng
+                        break
+                
+                # Get location name
+                location_name = None
+                if center_lat and center_lon:
+                    location_name = LocationUtils.reverse_geocode(center_lat, center_lon, level='city')
+                
+                # Use location name + "Triathlon" (no date, no plural - each is a single event)
+                cluster_name = f"{location_name} Triathlon" if location_name else "Triathlon"
+                
+                tri_clusters.append({
+                    'id': i,
+                    'name': cluster_name,
+                    'count': len(event['activities']),
+                    'center': {'lat': center_lat, 'lon': center_lon} if center_lat else None,
+                    'activity_ids': [a['id'] for a in event['activities']]
+                })
+            
+            # Add triathlon as a special activity type (insert at beginning)
+            top_activities.insert(0, {
+                'type': 'Triathlon',
+                'count': len(triathlon_events),
+                'distance_km': round(tri_distance / 1000, 1),
+                'elevation_m': round(tri_elevation),
+                'time_hours': round(tri_time / 3600, 1),
+                'clusters': tri_clusters
+            })
+        
         result = {
             'success': True,
             'year': year,
@@ -533,6 +627,7 @@ def pluralize_activity_type(activity_type, count):
         'Walk': 'Walks',
         'Swim': 'Swims',
         'Ski': 'Skis',
+        'Triathlon': 'Triathlons',
     }
     
     # Check if it's a known type
@@ -564,8 +659,24 @@ def generate_cluster_image():
         
         strava = get_strava_client()
         
-        # Fetch GPS data for the specific activities
+        # Triathlon colors - vibrant tones similar to Strava orange
+        TRIATHLON_COLORS = {
+            'Swim': '#1E88E5',           # Vibrant blue for swim
+            'Open Water Swim': '#1E88E5',
+            'Ride': '#FC4C02',           # Strava orange for bike
+            'Gravel Ride': '#FC4C02',
+            'Mountain Bike Ride': '#FC4C02',
+            'E-Bike Ride': '#FC4C02',
+            'Run': '#43A047',            # Vibrant green for run
+            'Trail Run': '#43A047',
+        }
+        
+        is_triathlon = (activity_type == 'Triathlon')
+        
+        # Fetch GPS data and stats for the specific activities
         activities_data = []
+        total_distance = 0
+        total_time = 0
         
         for activity_id in activity_ids:
             try:
@@ -573,12 +684,26 @@ def generate_cluster_image():
                 streams = strava.get_activity_streams(activity_id)
                 
                 if 'latlng' in streams and streams['latlng']['data']:
-                    activities_data.append({
+                    # Get activity details for stats
+                    activity_details = strava.get_activity_by_id(activity_id)
+                    total_distance += activity_details.get('distance', 0)
+                    total_time += activity_details.get('moving_time', 0)
+                    
+                    activity_data = {
                         'id': activity_id,
                         'name': f'Activity {activity_id}',
                         'coordinates': streams['latlng']['data'],
                         'type': activity_type
-                    })
+                    }
+                    
+                    # For triathlons, get the actual activity type and assign color
+                    if is_triathlon:
+                        actual_type = activity_details.get('type', '')
+                        activity_data['type'] = actual_type
+                        activity_data['color'] = TRIATHLON_COLORS.get(actual_type, '#FC4C02')
+                        logger.info(f"   🎨 Activity {activity_id}: {actual_type} -> {activity_data['color']}")
+                    
+                    activities_data.append(activity_data)
             except Exception as e:
                 logger.warning(f"⚠️ Could not fetch activity {activity_id}: {e}")
                 continue
@@ -586,31 +711,50 @@ def generate_cluster_image():
         if not activities_data:
             return jsonify({'success': False, 'error': 'No GPS data found for activities'}), 400
         
+        # Calculate stats for overlay
+        overlay_stats = {
+            'distance_km': round(total_distance / 1000, 1),
+            'time_hours': round(total_time / 3600, 1)
+        }
+        
         # Generate the image
         filename = f"wrap_{uuid.uuid4().hex[:8]}.png"
         output_path = OUTPUT_DIR / filename
         
-        # Create title with activity type (e.g., "Greater London Rides")
-        activity_count = len(activities_data)
-        activity_type_text = pluralize_activity_type(activity_type, activity_count)
-        image_title = f"{cluster_name} {activity_type_text}"
+        # Create title
+        if is_triathlon:
+            image_title = cluster_name  # Triathlon clusters already have nice names
+        else:
+            activity_count = len(activities_data)
+            activity_type_text = pluralize_activity_type(activity_type, activity_count)
+            image_title = f"{cluster_name} {activity_type_text}"
         
         from src.lib.map_generator import MapGenerator
         
+        # Get athlete info for overlay
+        athlete = get_current_user()
+        athlete_info = {
+            'name': athlete.get('firstname', ''),
+            'profile_url': athlete.get('profile_medium') or athlete.get('profile')
+        }
+        
+        # For triathlons, don't use single_color so each leg gets its own color
         MapGenerator.create_multi_activity_image(
             activities_data,
             output_file=str(output_path),
             smoothing='medium',
-            line_width=2,  # Thin, crisp lines
+            line_width=8,  # Bold lines
             width_px=img_width,
             show_markers=False,
             use_map_background=True,
-            single_color='#FC4C02',
+            single_color=None if is_triathlon else '#FC4C02',
             force_square=True,
             add_border=False,
             stats_data=None,
             title=image_title,
-            map_style='minimal'  # Colorful, no labels
+            overlay_stats=overlay_stats,
+            map_style='terrain',  # Terrain style with natural colors
+            athlete_info=athlete_info
         )
         
         image_url = f'/static/generated/{filename}'
@@ -663,20 +807,48 @@ def get_cluster_routes():
         activity_type = data.get('activity_type')
         activity_ids = data.get('activity_ids', [])
         
+        # Triathlon colors for the editor - vibrant tones similar to Strava orange
+        TRIATHLON_COLORS = {
+            'Swim': '#1E88E5',           # Vibrant blue
+            'Open Water Swim': '#1E88E5',
+            'Ride': '#FC4C02',           # Strava orange
+            'Gravel Ride': '#FC4C02',
+            'Mountain Bike Ride': '#FC4C02',
+            'E-Bike Ride': '#FC4C02',
+            'Run': '#43A047',            # Vibrant green
+            'Trail Run': '#43A047',
+        }
+        
+        is_triathlon = (activity_type == 'Triathlon')
         strava = get_strava_client()
         
-        # Fetch GPS data for the specific activities
+        # Fetch GPS data and stats for the specific activities
         routes = []
+        total_distance = 0
+        total_time = 0
         
         for activity_id in activity_ids:
             try:
                 streams = strava.get_activity_streams(activity_id)
                 
                 if 'latlng' in streams and streams['latlng']['data']:
-                    routes.append({
+                    # Get activity details for stats
+                    activity_details = strava.get_activity_by_id(activity_id)
+                    total_distance += activity_details.get('distance', 0)
+                    total_time += activity_details.get('moving_time', 0)
+                    
+                    route_data = {
                         'id': activity_id,
                         'coordinates': streams['latlng']['data']
-                    })
+                    }
+                    
+                    # For triathlons, get actual type and color
+                    if is_triathlon:
+                        actual_type = activity_details.get('type', '')
+                        route_data['actual_type'] = actual_type
+                        route_data['color'] = TRIATHLON_COLORS.get(actual_type, '#FC4C02')
+                    
+                    routes.append(route_data)
             except Exception as e:
                 logger.warning(f"⚠️ Could not fetch activity {activity_id}: {e}")
                 continue
@@ -684,10 +856,18 @@ def get_cluster_routes():
         if not routes:
             return jsonify({'success': False, 'error': 'No GPS data found'}), 400
         
+        # Calculate stats for overlay
+        stats = {
+            'distance_km': round(total_distance / 1000, 1),
+            'time_hours': round(total_time / 3600, 1)
+        }
+        
         return jsonify({
             'success': True,
             'routes': routes,
-            'activity_type': activity_type
+            'activity_type': activity_type,
+            'is_triathlon': is_triathlon,
+            'stats': stats
         })
         
     except Exception as e:
@@ -707,22 +887,39 @@ def export_custom_map():
         bounds = data.get('bounds', {})
         activity_type = data.get('activity_type', 'Activity')
         image_title = data.get('image_title', 'Custom Map')
-        map_style = data.get('map_style', 'minimal')  # minimal, terrain, clean
+        map_style = data.get('map_style', 'terrain')  # minimal, terrain, clean
         custom_zoom = data.get('zoom')  # Zoom level from editor
         img_width = int(data.get('img_width', 2000))
+        
+        # Overlay customization options
+        overlay_options = data.get('overlay_options', {
+            'show_title': True,
+            'show_profile': True,
+            'show_distance': True,
+            'show_time': True
+        })
+        
+        # Stats passed from frontend (pre-calculated)
+        overlay_stats = data.get('stats', {})
         
         if not routes:
             return jsonify({'success': False, 'error': 'No routes provided'}), 400
         
+        is_triathlon = (activity_type == 'Triathlon')
+        
         # Convert routes to the format expected by MapGenerator
         activities_data = []
         for route in routes:
-            activities_data.append({
+            activity_data = {
                 'id': route.get('id', 0),
                 'name': 'Activity',
                 'coordinates': route['coordinates'],
-                'type': activity_type
-            })
+                'type': route.get('actual_type', activity_type)
+            }
+            # For triathlons, include the color from the route
+            if is_triathlon and 'color' in route:
+                activity_data['color'] = route['color']
+            activities_data.append(activity_data)
         
         # Generate the image
         filename = f"custom_{uuid.uuid4().hex[:8]}.png"
@@ -730,22 +927,31 @@ def export_custom_map():
         
         from src.lib.map_generator import MapGenerator
         
+        # Get athlete info for overlay
+        athlete = get_current_user()
+        athlete_info = {
+            'profile_url': athlete.get('profile_medium') or athlete.get('profile')
+        }
+        
         MapGenerator.create_multi_activity_image(
             activities_data,
             output_file=str(output_path),
             smoothing='medium',
-            line_width=6,  # Wider lines for custom export
+            line_width=8,  # Wider lines for custom export
             width_px=img_width,
             show_markers=False,
             use_map_background=True,
-            single_color='#FC4C02',
+            single_color=None if is_triathlon else '#FC4C02',
             force_square=True,
             add_border=False,
             stats_data=None,
             title=image_title,
+            overlay_stats=overlay_stats,
             custom_bounds=bounds if bounds else None,
             map_style=map_style,
-            custom_zoom=custom_zoom
+            custom_zoom=custom_zoom,
+            athlete_info=athlete_info,
+            overlay_options=overlay_options
         )
         
         image_url = f'/static/generated/{filename}'

@@ -539,20 +539,37 @@ class ImageProcessor:
             return None
     
     @staticmethod
-    def add_title_overlay(image_path, title, stats=None, position='bottom'):
+    def add_title_overlay(image_path, title, stats=None, position='bottom', athlete_info=None, overlay_options=None):
         """
-        Add a beautiful title and stats overlay to an image
+        Add a beautiful title, stats, and profile overlay to an image
         
         Args:
             image_path: Path to the image file
             title: Title text (e.g., "London")
-            stats: Dict with 'activities', 'distance_km', 'elevation_m', 'time_hours'
+            stats: Dict with 'distance_km', 'time_hours' for display under title
             position: 'bottom' or 'top'
+            athlete_info: Dict with 'profile_url' for user profile picture
+            overlay_options: Dict with customization options:
+                - 'show_title': bool (default True)
+                - 'show_profile': bool (default True)
+                - 'show_distance': bool (default True)
+                - 'show_time': bool (default True)
         
         Returns:
             Path to the saved image
         """
         try:
+            # Default options
+            options = {
+                'show_title': True,
+                'show_profile': True,
+                'show_distance': True,
+                'show_time': False,  # Time disabled by default
+                'distance_unit': 'km'  # km or miles
+            }
+            if overlay_options:
+                options.update(overlay_options)
+            
             img = Image.open(image_path)
             width, height = img.size
             
@@ -560,35 +577,121 @@ class ImageProcessor:
             overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
             draw = ImageDraw.Draw(overlay)
             
-            # Font sizes - title smaller, stats proportional
-            title_size = int(height * 0.055)  # Smaller title
-            stats_size = int(height * 0.032)
-            label_size = int(height * 0.018)
+            # Calculate positions
+            padding = int(width * 0.04)
+            max_title_width = width - (padding * 2)  # Maximum width for title
             
-            # Load system fonts
+            # Font sizes - start with ideal size and shrink if needed
+            base_title_size = int(height * 0.055)
+            min_title_size = int(height * 0.025)  # Minimum readable size
+            stats_size = int(height * 0.038)  # Bigger stats text
+            
+            # Load fonts
             try:
-                title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", title_size)
                 stats_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", stats_size)
-                label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", label_size)
             except:
-                title_font = ImageFont.load_default()
                 stats_font = ImageFont.load_default()
-                label_font = ImageFont.load_default()
             
             # Colors
             strava_orange = '#FC4C02'
+            stats_color = strava_orange  # Same orange as title
             
-            # Calculate positions
-            padding = int(width * 0.04)
             bottom_y = height - padding
+            current_y = bottom_y
             
-            # Calculate title position (at bottom)
-            title_bbox = draw.textbbox((0, 0), title, font=title_font)
-            title_height = title_bbox[3] - title_bbox[1]
-            title_y = bottom_y - title_height
+            # Build stats text if stats provided and options enabled
+            stats_text_parts = []
+            if stats:
+                if options.get('show_distance') and 'distance_km' in stats:
+                    # Check if user wants miles
+                    if options.get('distance_unit') == 'miles':
+                        distance_miles = round(stats['distance_km'] * 0.621371, 1)
+                        stats_text_parts.append(f"{distance_miles} miles")
+                    else:
+                        stats_text_parts.append(f"{stats['distance_km']} km")
             
-            # Draw title
-            draw.text((padding, title_y), title, fill=strava_orange, font=title_font)
+            # Draw stats first (they go at the very bottom)
+            if stats_text_parts:
+                stats_text = "  •  ".join(stats_text_parts)
+                stats_bbox = draw.textbbox((0, 0), stats_text, font=stats_font)
+                stats_height = stats_bbox[3] - stats_bbox[1]
+                stats_y = current_y - stats_height
+                draw.text((padding, stats_y), stats_text, fill=stats_color, font=stats_font)
+                current_y = stats_y - int(height * 0.015)  # Gap between stats and title
+            
+            # Draw title above stats if enabled
+            if options.get('show_title') and title:
+                # Auto-size title font to fit within available width
+                title_size = base_title_size
+                title_font = None
+                
+                while title_size >= min_title_size:
+                    try:
+                        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", title_size)
+                    except:
+                        title_font = ImageFont.load_default()
+                        break
+                    
+                    title_bbox = draw.textbbox((0, 0), title, font=title_font)
+                    title_width = title_bbox[2] - title_bbox[0]
+                    
+                    if title_width <= max_title_width:
+                        break
+                    
+                    title_size -= 2  # Shrink by 2 pixels and try again
+                
+                title_bbox = draw.textbbox((0, 0), title, font=title_font)
+                title_height = title_bbox[3] - title_bbox[1]
+                title_y = current_y - title_height
+                
+                draw.text((padding, title_y), title, fill=strava_orange, font=title_font)
+            
+            # Draw profile picture in top-right corner if enabled
+            if options.get('show_profile') and athlete_info and athlete_info.get('profile_url'):
+                profile_url = athlete_info['profile_url']
+                profile_size = int(height * 0.07)  # Profile picture size
+                
+                # Background circle dimensions - thin border
+                circle_padding = int(height * 0.004)  # Thinner border
+                bg_size = profile_size + circle_padding * 2
+                
+                bg_x = width - padding - bg_size
+                bg_y = padding
+                
+                # Draw semi-transparent white background circle
+                bg_circle = Image.new('RGBA', (bg_size, bg_size), (255, 255, 255, 180))
+                
+                # Create circular mask for background
+                bg_mask = Image.new('L', (bg_size, bg_size), 0)
+                bg_mask_draw = ImageDraw.Draw(bg_mask)
+                bg_mask_draw.ellipse([(0, 0), (bg_size, bg_size)], fill=255)
+                bg_circle.putalpha(bg_mask)
+                
+                # Paste background onto overlay
+                overlay.paste(bg_circle, (bg_x, bg_y), bg_circle)
+                
+                # Try to load and draw profile picture
+                try:
+                    response = requests.get(profile_url, timeout=5)
+                    if response.status_code == 200:
+                        profile_img = Image.open(BytesIO(response.content))
+                        profile_img = profile_img.resize((profile_size, profile_size), Image.Resampling.LANCZOS)
+                        
+                        # Create circular mask for profile picture
+                        circle_mask = Image.new('L', (profile_size, profile_size), 0)
+                        circle_draw = ImageDraw.Draw(circle_mask)
+                        circle_draw.ellipse([(0, 0), (profile_size, profile_size)], fill=255)
+                        
+                        profile_img = profile_img.convert('RGBA')
+                        profile_img.putalpha(circle_mask)
+                        
+                        # Position profile picture centered in background
+                        profile_x = bg_x + circle_padding
+                        profile_y = bg_y + circle_padding
+                        
+                        overlay.paste(profile_img, (profile_x, profile_y), profile_img)
+                except Exception as e:
+                    print(f"⚠️ Could not load profile image: {e}")
             
             # Composite overlay onto image
             img = img.convert('RGBA')
@@ -734,13 +837,13 @@ class ImageProcessor:
         return (lat, lon)
     
     @staticmethod
-    def get_map_bounds(coordinates, padding=0.1):
+    def get_map_bounds(coordinates, padding=0.02):
         """
         Get bounding box for coordinates with padding
         
         Args:
             coordinates: List of [lat, lon] pairs
-            padding: Padding as fraction of range (default 10%)
+            padding: Padding as fraction of range (default 2%)
         
         Returns:
             (min_lat, max_lat, min_lon, max_lon)
@@ -863,8 +966,8 @@ class ImageProcessor:
             },
             'terrain': {
                 'mapbox': 'mapbox/outdoors-v12',
-                'carto': ('CartoDB Voyager', 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'),
-                'description': 'Terrain with labels'
+                'carto': ('CartoDB Voyager NoLabels', 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png'),
+                'description': 'Terrain, minimal labels'
             },
             'clean': {
                 'mapbox': 'mapbox/streets-v12',  # Full streets
@@ -1700,7 +1803,8 @@ class MapGenerator:
                                      background_image_url=None, force_square=False, marker_size=15,
                                      use_map_background=False, single_color=None, add_border=False,
                                      stats_data=None, title=None, overlay_stats=None, custom_bounds=None,
-                                     map_style='minimal', custom_zoom=None):
+                                     map_style='minimal', custom_zoom=None, athlete_info=None,
+                                     overlay_options=None):
         """
         Create a static image with multiple activities displayed together
         
@@ -1917,9 +2021,15 @@ class MapGenerator:
             if stats_data:
                 ImageProcessor.add_statistics_text(output_file, stats_data)
         
-        # Add title overlay if provided
-        if title:
-            ImageProcessor.add_title_overlay(output_file, title, overlay_stats)
+        # Add title overlay if provided (or if we have stats/profile to show)
+        if title or overlay_stats or athlete_info:
+            ImageProcessor.add_title_overlay(
+                output_file, 
+                title, 
+                overlay_stats, 
+                athlete_info=athlete_info,
+                overlay_options=overlay_options
+            )
         
         print(f"Image saved to: {output_file}")
         print(f"Total activities: {len(activities_data)}")
