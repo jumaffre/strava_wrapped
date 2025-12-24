@@ -2,7 +2,6 @@
 
 Generate beautiful, shareable maps of your Strava activities — your personal "year in review" visualization.
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue) ![Flask](https://img.shields.io/badge/Flask-Web%20App-green) ![Mapbox](https://img.shields.io/badge/Mapbox-Maps-orange)
 
 ## Features
 
