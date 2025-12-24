@@ -609,7 +609,8 @@ def generate_cluster_image():
             force_square=True,
             add_border=False,
             stats_data=None,
-            title=image_title
+            title=image_title,
+            map_style='minimal'  # Colorful, no labels
         )
         
         image_url = f'/static/generated/{filename}'
@@ -624,6 +625,139 @@ def generate_cluster_image():
     except Exception as e:
         import traceback
         logger.error(f"❌ Error generating cluster image: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/customize')
+def customize_map():
+    """Interactive map customizer page."""
+    if not is_authenticated():
+        return redirect(url_for('index'))
+    
+    # Get parameters from query string
+    activity_type = request.args.get('activity_type', 'Run')
+    cluster_name = request.args.get('cluster_name', 'Area')
+    activity_ids = request.args.get('activity_ids', '')
+    
+    # Get Mapbox token
+    mapbox_token = os.getenv('MAPBOX_ACCESS_TOKEN', '')
+    
+    return render_template('customize.html',
+                          user=get_current_user(),
+                          authenticated=True,
+                          activity_type=activity_type,
+                          cluster_name=cluster_name,
+                          activity_ids=activity_ids,
+                          mapbox_token=mapbox_token)
+
+
+@app.route('/api/cluster-routes', methods=['POST'])
+def get_cluster_routes():
+    """Get GPS routes for a cluster (for interactive map)."""
+    if not is_authenticated():
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    try:
+        data = request.get_json()
+        activity_type = data.get('activity_type')
+        activity_ids = data.get('activity_ids', [])
+        
+        strava = get_strava_client()
+        
+        # Fetch GPS data for the specific activities
+        routes = []
+        
+        for activity_id in activity_ids:
+            try:
+                streams = strava.get_activity_streams(activity_id)
+                
+                if 'latlng' in streams and streams['latlng']['data']:
+                    routes.append({
+                        'id': activity_id,
+                        'coordinates': streams['latlng']['data']
+                    })
+            except Exception as e:
+                logger.warning(f"⚠️ Could not fetch activity {activity_id}: {e}")
+                continue
+        
+        if not routes:
+            return jsonify({'success': False, 'error': 'No GPS data found'}), 400
+        
+        return jsonify({
+            'success': True,
+            'routes': routes,
+            'activity_type': activity_type
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error fetching routes: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/export-custom-map', methods=['POST'])
+def export_custom_map():
+    """Export the customized map view as an image."""
+    if not is_authenticated():
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    try:
+        data = request.get_json()
+        routes = data.get('routes', [])
+        bounds = data.get('bounds', {})
+        activity_type = data.get('activity_type', 'Activity')
+        image_title = data.get('image_title', 'Custom Map')
+        map_style = data.get('map_style', 'minimal')  # minimal, terrain, clean
+        custom_zoom = data.get('zoom')  # Zoom level from editor
+        img_width = int(data.get('img_width', 2000))
+        
+        if not routes:
+            return jsonify({'success': False, 'error': 'No routes provided'}), 400
+        
+        # Convert routes to the format expected by MapGenerator
+        activities_data = []
+        for route in routes:
+            activities_data.append({
+                'id': route.get('id', 0),
+                'name': 'Activity',
+                'coordinates': route['coordinates'],
+                'type': activity_type
+            })
+        
+        # Generate the image
+        filename = f"custom_{uuid.uuid4().hex[:8]}.png"
+        output_path = OUTPUT_DIR / filename
+        
+        from src.lib.map_generator import MapGenerator
+        
+        MapGenerator.create_multi_activity_image(
+            activities_data,
+            output_file=str(output_path),
+            smoothing='medium',
+            line_width=6,  # Wider lines for custom export
+            width_px=img_width,
+            show_markers=False,
+            use_map_background=True,
+            single_color='#FC4C02',
+            force_square=True,
+            add_border=False,
+            stats_data=None,
+            title=image_title,
+            custom_bounds=bounds if bounds else None,
+            map_style=map_style,
+            custom_zoom=custom_zoom
+        )
+        
+        image_url = f'/static/generated/{filename}'
+        
+        return jsonify({
+            'success': True,
+            'image_url': image_url
+        })
+        
+    except Exception as e:
+        import traceback
+        logger.error(f"❌ Error exporting custom map: {e}")
         logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 

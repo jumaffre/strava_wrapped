@@ -844,6 +844,19 @@
             height: 18px;
         }
 
+        .btn-customize {
+            background: linear-gradient(135deg, var(--strava-orange) 0%, var(--strava-orange-dark) 100%);
+            border-color: var(--strava-orange);
+            color: white;
+        }
+
+        .btn-customize:hover {
+            background: linear-gradient(135deg, var(--strava-orange-dark) 0%, #c03800 100%);
+            border-color: var(--strava-orange-dark);
+            color: white;
+            transform: translateY(-1px);
+        }
+
         .copy-toast {
             position: fixed;
             bottom: 24px;
@@ -1048,6 +1061,13 @@
             <div class="modal-body">
                 <img id="previewImage" class="preview-image" src="" alt="Preview">
                 <div class="modal-actions">
+                    <a id="customizeBtn" class="btn-share btn-customize" href="#" title="Customize map view">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3" />
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                        Customize
+                    </a>
                     <a id="openNewTabBtn" class="btn-share" href="" target="_blank" title="Open full image in new tab">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -1243,7 +1263,7 @@
                                     ${activity.clusters.length > 0
                     ? activity.clusters.map(cluster => `
                                             <button class="cluster-btn" 
-                                                onclick="generateCluster('${activity.type}', '${cluster.name}', ${JSON.stringify(cluster.activity_ids).replace(/"/g, '&quot;')})">
+                                                onclick="generateCluster('${activity.type}', '${cluster.name}', ${JSON.stringify(cluster.activity_ids).replace(/"/g, '&quot;')}, event)">
                                                 <span class="cluster-name">${cluster.name}</span>
                                                 <span class="cluster-count">${cluster.count}</span>
                                             </button>
@@ -1262,17 +1282,14 @@
             dashboard.style.display = 'block';
         }
 
-        async function generateCluster(activityType, clusterName, activityIds) {
-            // Find the button and show loading state
-            const buttons = document.querySelectorAll('.cluster-btn');
-            let clickedBtn = null;
-            buttons.forEach(btn => {
-                if (btn.textContent.includes(clusterName)) {
-                    clickedBtn = btn;
-                    btn.classList.add('loading');
-                    btn.innerHTML = `<span class="spinner"></span> Generating...`;
-                }
-            });
+        async function generateCluster(activityType, clusterName, activityIds, event) {
+            // Get the clicked button from the event
+            const clickedBtn = event ? event.currentTarget : null;
+            
+            if (clickedBtn) {
+                clickedBtn.classList.add('loading');
+                clickedBtn.innerHTML = `<span class="spinner"></span> Generating...`;
+            }
 
             try {
                 const response = await fetch('/api/generate-cluster', {
@@ -1292,8 +1309,12 @@
                     throw new Error(data.error || 'Failed to generate image');
                 }
 
-                // Show modal with preview
-                showModal(clusterName, data.image_url);
+                // Show modal with preview and cluster info for customization
+                showModal(clusterName, data.image_url, {
+                    activityType: activityType,
+                    clusterName: clusterName,
+                    activityIds: activityIds
+                });
 
             } catch (error) {
                 alert('Error generating wrap: ' + error.message);
@@ -1313,15 +1334,33 @@
         // Modal state
         let currentImageUrl = '';
         let currentTitle = '';
+        let currentClusterInfo = null;  // Store cluster info for customization
 
-        function showModal(title, imageUrl) {
+        function showModal(title, imageUrl, clusterInfo = null) {
             currentTitle = title;
             currentImageUrl = window.location.origin + imageUrl;
+            currentClusterInfo = clusterInfo;
+            
             document.getElementById('modalTitle').textContent = title + ' Wrap';
             document.getElementById('previewImage').src = imageUrl;
             document.getElementById('openNewTabBtn').href = imageUrl;
             document.getElementById('downloadBtn').href = imageUrl;
             document.getElementById('downloadBtn').download = title.replace(/\s+/g, '-').toLowerCase() + '-wrap.png';
+            
+            // Set up customize button
+            const customizeBtn = document.getElementById('customizeBtn');
+            if (clusterInfo) {
+                const params = new URLSearchParams({
+                    activity_type: clusterInfo.activityType,
+                    cluster_name: clusterInfo.clusterName,
+                    activity_ids: clusterInfo.activityIds.join(',')
+                });
+                customizeBtn.href = '/customize?' + params.toString();
+                customizeBtn.style.display = 'flex';
+            } else {
+                customizeBtn.style.display = 'none';
+            }
+            
             document.getElementById('previewModal').classList.add('visible');
         }
 

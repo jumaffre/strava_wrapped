@@ -28,18 +28,16 @@ load_dotenv()
 # Mapbox configuration - get free token at https://mapbox.com
 MAPBOX_ACCESS_TOKEN = os.getenv('MAPBOX_ACCESS_TOKEN', '').strip()
 
-# Mapbox Standard style with light presets for beautiful, stylized maps
-# The 'faded' theme with 'dawn' preset creates a warm, golden-hour aesthetic
-# See: https://docs.mapbox.com/mapbox-gl-js/guides/styles/
-MAPBOX_STYLE = 'mapbox/standard'
-MAPBOX_LIGHT_PRESET = 'dawn'  # Options: dawn, day, dusk, night
+# Mapbox Outdoors style - bold, colorful with terrain, parks, water, and labels
+# This style is more visually striking and includes place names
+# See: https://docs.mapbox.com/api/maps/styles/
+MAPBOX_STYLE = 'mapbox/outdoors-v12'
 
-# Fallback styles (without light presets)
+# Available styles for reference
 MAPBOX_STYLES = {
-    'standard': 'mapbox/standard',          # New standard style with light presets
-    'outdoors': 'mapbox/outdoors-v12',      # Beautiful terrain with trails, parks, water
+    'outdoors': 'mapbox/outdoors-v12',      # Bold terrain with trails, parks, water, labels
+    'streets': 'mapbox/streets-v12',        # Standard streets with labels
     'light': 'mapbox/light-v11',            # Minimal light gray style  
-    'streets': 'mapbox/streets-v12',        # Standard streets
     'dark': 'mapbox/dark-v11',              # Dark mode
 }
 
@@ -765,12 +763,16 @@ class ImageProcessor:
         return (min_lat, max_lat, min_lon, max_lon)
     
     @staticmethod
-    def create_minimal_map_background(coordinates, width, height):
+    def create_minimal_map_background(coordinates, width, height, map_style='light', custom_zoom=None):
         """
-        Create a beautiful map background using Mapbox Standard style with dawn light preset.
+        Create a beautiful map background using Mapbox styles.
         
-        Uses Mapbox's 'faded' theme with 'dawn' lighting for a warm, golden-hour aesthetic.
-        The style is professionally designed and needs no post-processing.
+        Args:
+            coordinates: List of [lat, lon] pairs for route bounds
+            width: Output image width in pixels
+            height: Output image height in pixels
+            map_style: Style preset - 'minimal', 'terrain', 'clean'
+            custom_zoom: Optional explicit zoom level (use if matching editor view)
         Falls back to CartoDB if no Mapbox token is configured.
         
         Args:
@@ -791,19 +793,24 @@ class ImageProcessor:
         # Determine if using Mapbox (higher quality 512px tiles)
         use_mapbox = bool(MAPBOX_ACCESS_TOKEN)
         
-        # Estimate zoom level
-        if max(lat_range, lon_range) > 1:
-            zoom = 10
-        elif max(lat_range, lon_range) > 0.5:
-            zoom = 11
-        elif max(lat_range, lon_range) > 0.1:
-            zoom = 12
-        elif max(lat_range, lon_range) > 0.05:
-            zoom = 13
-        elif max(lat_range, lon_range) > 0.02:
-            zoom = 14
+        # Use custom zoom if provided, otherwise estimate from bounds
+        if custom_zoom is not None:
+            zoom = int(round(custom_zoom))
+            print(f"    Using custom zoom level: {zoom}")
         else:
-            zoom = 15
+            # Estimate zoom level from bounds
+            if max(lat_range, lon_range) > 1:
+                zoom = 10
+            elif max(lat_range, lon_range) > 0.5:
+                zoom = 11
+            elif max(lat_range, lon_range) > 0.1:
+                zoom = 12
+            elif max(lat_range, lon_range) > 0.05:
+                zoom = 13
+            elif max(lat_range, lon_range) > 0.02:
+                zoom = 14
+            else:
+                zoom = 15
         
         # Get tile coordinates for corners
         min_tile_x, max_tile_y = ImageProcessor.lat_lon_to_tile(min_lat, min_lon, zoom)
@@ -816,39 +823,83 @@ class ImageProcessor:
             max_tile_y += 1
         
         # Adjust tile grid to match target aspect ratio for minimal distortion
-        target_aspect = width / height
-        tiles_x = max_tile_x - min_tile_x + 1
-        tiles_y = max_tile_y - min_tile_y + 1
-        current_aspect = tiles_x / tiles_y
-        
-        # Expand tile grid to better match target aspect ratio
-        if abs(current_aspect - target_aspect) > 0.1:
-            if target_aspect > current_aspect:
-                # Need more width (more X tiles)
-                needed_x = int(tiles_y * target_aspect)
-                expand = needed_x - tiles_x
-                if expand > 0:
-                    max_tile_x += expand // 2
-                    min_tile_x -= (expand - expand // 2)
-            else:
-                # Need more height (more Y tiles)
-                needed_y = int(tiles_x / target_aspect)
-                expand = needed_y - tiles_y
-                if expand > 0:
-                    max_tile_y += expand // 2
-                    min_tile_y -= (expand - expand // 2)
+        # Skip this when custom_zoom is provided (we want to match the editor exactly)
+        if custom_zoom is None:
+            target_aspect = width / height
+            tiles_x = max_tile_x - min_tile_x + 1
+            tiles_y = max_tile_y - min_tile_y + 1
+            current_aspect = tiles_x / tiles_y
+            
+            # Expand tile grid to better match target aspect ratio
+            if abs(current_aspect - target_aspect) > 0.1:
+                if target_aspect > current_aspect:
+                    # Need more width (more X tiles)
+                    needed_x = int(tiles_y * target_aspect)
+                    expand = needed_x - tiles_x
+                    if expand > 0:
+                        max_tile_x += expand // 2
+                        min_tile_x -= (expand - expand // 2)
+                else:
+                    # Need more height (more Y tiles)
+                    needed_y = int(tiles_x / target_aspect)
+                    expand = needed_y - tiles_y
+                    if expand > 0:
+                        max_tile_y += expand // 2
+                        min_tile_y -= (expand - expand // 2)
         
         # Recalculate tile counts
         tiles_wide = max_tile_x - min_tile_x + 1
         tiles_high = max_tile_y - min_tile_y + 1
         
+        # Style configurations for static image generation
+        # minimal: Colorful but no text labels
+        # terrain: Full outdoors style with labels
+        # clean: Streets style with place names but no road numbers
+        style_configs = {
+            'minimal': {
+                'mapbox': 'mapbox/streets-v12',  # Will look slightly different from interactive (which hides labels)
+                'carto': ('CartoDB Voyager NoLabels', 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png'),
+                'description': 'Colorful, no labels'
+            },
+            'terrain': {
+                'mapbox': 'mapbox/outdoors-v12',
+                'carto': ('CartoDB Voyager', 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'),
+                'description': 'Terrain with labels'
+            },
+            'clean': {
+                'mapbox': 'mapbox/streets-v12',  # Full streets
+                'carto': ('CartoDB Voyager', 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'),
+                'description': 'Streets with place names'
+            },
+            # Legacy mappings
+            'light': {
+                'mapbox': 'mapbox/streets-v12',
+                'carto': ('CartoDB Voyager NoLabels', 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png'),
+                'description': 'Minimal'
+            },
+            'outdoors': {
+                'mapbox': 'mapbox/outdoors-v12',
+                'carto': ('CartoDB Voyager', 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'),
+                'description': 'Outdoors'
+            },
+            'streets': {
+                'mapbox': 'mapbox/streets-v12',
+                'carto': ('CartoDB Voyager', 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'),
+                'description': 'Streets'
+            }
+        }
+        
+        style_config = style_configs.get(map_style, style_configs['minimal'])
+        selected_mapbox_style = style_config['mapbox']
+        selected_carto = style_config['carto']
+        
         # Mapbox uses 512px tiles with @2x (1024px effective), CartoDB uses 256px
         if use_mapbox:
             tile_size = 1024  # 512 @2x
-            print(f"    Using Mapbox Standard style with '{MAPBOX_LIGHT_PRESET}' light preset")
+            print(f"    Using Mapbox style: {style_config['description']}")
         else:
-            tile_size = 256
-            print(f"    Using CartoDB (set MAPBOX_ACCESS_TOKEN for better quality)")
+            tile_size = 512
+            print(f"    Using CartoDB: {style_config['description']}")
         
         print(f"    Zoom: {zoom}, downloading {tiles_wide * tiles_high} tiles...")
         
@@ -859,31 +910,20 @@ class ImageProcessor:
         tile_providers = []
         
         if use_mapbox:
-            # Mapbox Standard style with dawn light preset for faded, warm aesthetic
-            # The config parameter sets the light preset
-            config = urllib.parse.quote('{"lightPreset":"' + MAPBOX_LIGHT_PRESET + '"}')
             tile_providers.append({
-                'name': f'Mapbox Standard ({MAPBOX_LIGHT_PRESET})',
-                'url': f'https://api.mapbox.com/styles/v1/{MAPBOX_STYLE}/tiles/512/{{z}}/{{x}}/{{y}}@2x?access_token={MAPBOX_ACCESS_TOKEN}&config={config}',
+                'name': f"Mapbox {style_config['description']}",
+                'url': f'https://api.mapbox.com/styles/v1/{selected_mapbox_style}/tiles/512/{{z}}/{{x}}/{{y}}@2x?access_token={MAPBOX_ACCESS_TOKEN}',
                 'subdomains': [''],
                 'tile_size': 1024
             })
         
-        # Fallback providers
-        tile_providers.extend([
-            {
-                'name': 'CartoDB Voyager NoLabels',
-                'url': 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png',
-                'subdomains': ['a', 'b', 'c', 'd'],
-                'tile_size': 512
-            },
-            {
-                'name': 'CartoDB Positron NoLabels',
-                'url': 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png',
-                'subdomains': ['a', 'b', 'c', 'd'],
-                'tile_size': 256
-            }
-        ])
+        # Fallback/alternative provider
+        tile_providers.append({
+            'name': selected_carto[0],
+            'url': selected_carto[1],
+            'subdomains': ['a', 'b', 'c', 'd'],
+            'tile_size': 512
+        })
         
         headers = {'User-Agent': 'StravaWrapped/1.0 (Strava Activity Mapper)'}
         tiles_downloaded = 0
@@ -958,11 +998,6 @@ class ImageProcessor:
         if tiles_downloaded == 0:
             raise Exception("No map tiles could be downloaded from any provider")
         
-        # Resize to target dimensions with high quality
-        # Mapbox styles are already beautifully designed - no post-processing needed!
-        print(f"    Resizing from {map_img.size[0]}x{map_img.size[1]} to {width}x{height}...")
-        map_img = map_img.resize((width, height), Image.Resampling.LANCZOS)
-        
         # Calculate the actual geographic extent of the tiles
         tile_nw_lat, tile_nw_lon = ImageProcessor.tile_to_lat_lon(min_tile_x, min_tile_y, zoom)
         tile_se_lat, tile_se_lon = ImageProcessor.tile_to_lat_lon(max_tile_x + 1, max_tile_y + 1, zoom)
@@ -971,6 +1006,48 @@ class ImageProcessor:
         actual_max_lat = tile_nw_lat
         actual_min_lon = tile_nw_lon
         actual_max_lon = tile_se_lon
+        
+        # When custom_zoom is provided, crop to exact bounds before resizing
+        if custom_zoom is not None:
+            tile_img_width = map_img.size[0]
+            tile_img_height = map_img.size[1]
+            
+            # Calculate pixel positions for the requested bounds within the tile grid
+            lon_range = actual_max_lon - actual_min_lon
+            lat_range = actual_max_lat - actual_min_lat
+            
+            # Requested bounds
+            req_min_lat = min_lat
+            req_max_lat = max_lat
+            req_min_lon = min_lon
+            req_max_lon = max_lon
+            
+            # Calculate crop box (in pixels)
+            left_pct = (req_min_lon - actual_min_lon) / lon_range if lon_range > 0 else 0
+            right_pct = (req_max_lon - actual_min_lon) / lon_range if lon_range > 0 else 1
+            top_pct = (actual_max_lat - req_max_lat) / lat_range if lat_range > 0 else 0
+            bottom_pct = (actual_max_lat - req_min_lat) / lat_range if lat_range > 0 else 1
+            
+            left = max(0, int(left_pct * tile_img_width))
+            right = min(tile_img_width, int(right_pct * tile_img_width))
+            top = max(0, int(top_pct * tile_img_height))
+            bottom = min(tile_img_height, int(bottom_pct * tile_img_height))
+            
+            # Ensure we have a valid crop area
+            if right > left and bottom > top:
+                print(f"    Cropping to match editor bounds...")
+                map_img = map_img.crop((left, top, right, bottom))
+                # Update the actual extent to match the crop
+                actual_min_lon = req_min_lon
+                actual_max_lon = req_max_lon
+                actual_min_lat = req_min_lat
+                actual_max_lat = req_max_lat
+        
+        # Resize to target dimensions with high quality
+        print(f"    Resizing from {map_img.size[0]}x{map_img.size[1]} to {width}x{height}...")
+        map_img = map_img.resize((width, height), Image.Resampling.LANCZOS)
+        
+        print(f"    ✓ Map background applied")
         
         return (map_img, (actual_min_lon, actual_max_lon, actual_min_lat, actual_max_lat))
 
@@ -1622,7 +1699,8 @@ class MapGenerator:
                                      background_color='white', show_markers=True, dpi=100,
                                      background_image_url=None, force_square=False, marker_size=15,
                                      use_map_background=False, single_color=None, add_border=False,
-                                     stats_data=None, title=None, overlay_stats=None):
+                                     stats_data=None, title=None, overlay_stats=None, custom_bounds=None,
+                                     map_style='minimal', custom_zoom=None):
         """
         Create a static image with multiple activities displayed together
         
@@ -1644,6 +1722,7 @@ class MapGenerator:
             stats_data: Optional dict with statistics to display on border (requires add_border=True)
             title: Title to overlay on image (e.g., cluster name)
             overlay_stats: Stats dict for overlay (activities, distance_km, elevation_m, time_hours)
+            custom_bounds: Optional dict with minLat, maxLat, minLon, maxLon for custom map extent
         
         Returns:
             Path to saved file
@@ -1729,15 +1808,26 @@ class MapGenerator:
         
         # Handle background (priority: map > photo > solid color)
         if use_map_background:
-            # Create minimal map background using all coordinates
+            # Create minimal map background using all coordinates or custom bounds
             print("  Generating minimal map background...")
             try:
-                all_coords_for_map = []
-                for activity in activities_data:
-                    all_coords_for_map.extend(activity['coordinates'])
+                # Use custom bounds if provided, otherwise calculate from coordinates
+                if custom_bounds:
+                    # Create synthetic coordinates from custom bounds for map generation
+                    coords_for_map = [
+                        [custom_bounds['minLat'], custom_bounds['minLon']],
+                        [custom_bounds['maxLat'], custom_bounds['maxLon']],
+                        [custom_bounds['minLat'], custom_bounds['maxLon']],
+                        [custom_bounds['maxLat'], custom_bounds['minLon']]
+                    ]
+                    print(f"    Using custom bounds: {custom_bounds}")
+                else:
+                    coords_for_map = []
+                    for activity in activities_data:
+                        coords_for_map.extend(activity['coordinates'])
                 
                 bg_result = ImageProcessor.create_minimal_map_background(
-                    all_coords_for_map, width_px, height_px
+                    coords_for_map, width_px, height_px, map_style=map_style, custom_zoom=custom_zoom
                 )
                 bg_img, (tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max) = bg_result
                 
