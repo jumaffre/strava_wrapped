@@ -432,34 +432,35 @@ class ImageProcessor:
             return image_path
     
     @staticmethod
-    def create_stats_image(output_path, title, year, stats, theme='dark', width=1200, height=630):
+    def create_stats_image(output_path, title, year, stats, theme='dark', size=800):
         """
-        Create a beautiful stats-only image (no map) for sharing
+        Create a beautiful square stats image for sharing
         
         Args:
             output_path: Path to save the image
-            title: Title text (e.g., "John's 2025")
+            title: Title text (unused, we use "My <year> Strava Wrapped")
             year: Year number
-            stats: Dict with 'activities', 'distance_km', 'elevation_m', 'time_hours', 'kudos'
+            stats: Dict with 'activities', 'distance_km', 'kudos', 'countries', 'top_activities'
             theme: 'dark' or 'light'
-            width: Image width in pixels
-            height: Image height in pixels
+            size: Image size in pixels (square)
         
         Returns:
             Path to saved image
         """
         try:
+            width = height = size
+            
             # Theme colors
             if theme == 'light':
                 bg_color = (248, 248, 250)
                 text_color = (17, 17, 22)
-                secondary_color = (92, 92, 112)
-                muted_color = (148, 148, 168)
+                secondary_color = (100, 100, 120)
+                muted_color = (140, 140, 160)
             else:
-                bg_color = (8, 8, 12)
+                bg_color = (12, 12, 16)
                 text_color = (255, 255, 255)
-                secondary_color = (148, 148, 168)
-                muted_color = (92, 92, 112)
+                secondary_color = (160, 160, 180)
+                muted_color = (100, 100, 120)
             
             strava_orange = (252, 76, 2)
             
@@ -467,65 +468,129 @@ class ImageProcessor:
             img = Image.new('RGB', (width, height), bg_color)
             draw = ImageDraw.Draw(img)
             
-            # Load fonts
-            title_size = int(height * 0.11)
-            year_size = int(height * 0.18)
-            stat_value_size = int(height * 0.095)
-            stat_label_size = int(height * 0.038)
-            
-            # Load system fonts
+            # Load fonts (DejaVu Sans - clean and widely available)
             try:
-                title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", title_size)
-                year_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", year_size)
-                stat_value_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", stat_value_size)
-                stat_label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", stat_label_size)
-            except:
-                title_font = ImageFont.load_default()
-                year_font = ImageFont.load_default()
-                stat_value_font = ImageFont.load_default()
-                stat_label_font = ImageFont.load_default()
+                header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", int(size * 0.05))
+                huge_stat_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", int(size * 0.18))
+                big_stat_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", int(size * 0.10))
+                label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", int(size * 0.035))
+                activity_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", int(size * 0.05))
+            except Exception as e:
+                print(f"⚠️ Could not load fonts: {e}")
+                header_font = huge_stat_font = big_stat_font = label_font = activity_font = ImageFont.load_default()
             
-            padding = int(width * 0.06)
+            padding = int(size * 0.06)
             
-            # Draw title (top left)
-            draw.text((padding, padding), title, fill=text_color, font=title_font)
+            # Header: "My 2024 Strava Wrap" with year in orange
+            header_prefix = "My "
+            header_year = str(year)
+            header_suffix = " Strava Wrap"
             
-            # Draw year in large orange text
-            title_bbox = draw.textbbox((0, 0), title, font=title_font)
-            title_height = title_bbox[3] - title_bbox[1]
-            year_y = padding + title_height + int(height * 0.02)
-            draw.text((padding, year_y), str(year), fill=strava_orange, font=year_font)
+            # Calculate total width for centering
+            prefix_bbox = draw.textbbox((0, 0), header_prefix, font=header_font)
+            year_bbox = draw.textbbox((0, 0), header_year, font=header_font)
+            suffix_bbox = draw.textbbox((0, 0), header_suffix, font=header_font)
             
-            # Draw Strava Wrapped text
-            year_bbox = draw.textbbox((0, 0), str(year), font=year_font)
+            prefix_width = prefix_bbox[2] - prefix_bbox[0]
             year_width = year_bbox[2] - year_bbox[0]
-            wrapped_x = padding + year_width + int(width * 0.02)
-            wrapped_y = year_y + int(height * 0.08)
-            draw.text((wrapped_x, wrapped_y), "Wrapped", fill=secondary_color, font=title_font)
+            suffix_width = suffix_bbox[2] - suffix_bbox[0]
+            total_header_width = prefix_width + year_width + suffix_width
             
-            # Draw stats in bottom section
-            stats_y = height - padding - int(height * 0.22)
-            stat_items = [
-                (str(stats.get('activities', 0)), 'activities'),
-                (f"{stats.get('distance_km', 0):,.0f}", 'kilometers'),
-                (f"{stats.get('elevation_m', 0):,.0f}", 'meters climbed'),
-                (f"{stats.get('time_hours', 0):,.0f}", 'hours'),
-                (str(stats.get('kudos', 0)), 'kudos'),
-            ]
+            header_x = (width - total_header_width) // 2
+            draw.text((header_x, padding), header_prefix, fill=secondary_color, font=header_font)
+            draw.text((header_x + prefix_width, padding), header_year, fill=strava_orange, font=header_font)
+            draw.text((header_x + prefix_width + year_width, padding), header_suffix, fill=secondary_color, font=header_font)
             
-            stat_width = (width - 2 * padding) / len(stat_items)
+            # Main stat: Activities count (HUGE, centered)
+            stats_start_y = int(size * 0.18)
+            activities = str(stats.get('activities', 0))
+            act_bbox = draw.textbbox((0, 0), activities, font=huge_stat_font)
+            act_width = act_bbox[2] - act_bbox[0]
+            act_height = act_bbox[3] - act_bbox[1]
+            act_x = (width - act_width) // 2
+            draw.text((act_x, stats_start_y), activities, fill=strava_orange, font=huge_stat_font)
             
-            for i, (value, label) in enumerate(stat_items):
-                stat_x = padding + i * stat_width
+            # "activities" label with more spacing
+            act_label = "activities"
+            label_bbox = draw.textbbox((0, 0), act_label, font=label_font)
+            label_width = label_bbox[2] - label_bbox[0]
+            label_x = (width - label_width) // 2
+            label_y = stats_start_y + act_height + int(size * 0.025)
+            draw.text((label_x, label_y), act_label, fill=muted_color, font=label_font)
+            
+            # Secondary stats row (distance, kudos, countries) - bigger numbers
+            secondary_y = int(size * 0.48)
+            secondary_stats = []
+            
+            distance = stats.get('distance_km', 0)
+            if distance > 0:
+                secondary_stats.append((f"{int(distance)}", "km"))
+            
+            kudos = stats.get('kudos', 0)
+            if kudos > 0:
+                secondary_stats.append((str(kudos), "kudos"))
+            
+            countries = stats.get('countries', 0)
+            if countries > 0:
+                secondary_stats.append((str(countries), "countries" if countries > 1 else "country"))
+            
+            if secondary_stats:
+                stat_spacing = width // (len(secondary_stats) + 1)
+                for i, (value, label) in enumerate(secondary_stats):
+                    x = stat_spacing * (i + 1)
+                    
+                    # Value (bigger)
+                    val_bbox = draw.textbbox((0, 0), value, font=big_stat_font)
+                    val_width = val_bbox[2] - val_bbox[0]
+                    val_height = val_bbox[3] - val_bbox[1]
+                    draw.text((x - val_width // 2, secondary_y), value, fill=text_color, font=big_stat_font)
+                    
+                    # Label with more spacing
+                    lbl_bbox = draw.textbbox((0, 0), label, font=label_font)
+                    lbl_width = lbl_bbox[2] - lbl_bbox[0]
+                    lbl_y = secondary_y + val_height + int(size * 0.02)
+                    draw.text((x - lbl_width // 2, lbl_y), label, fill=muted_color, font=label_font)
+            
+            # Top activities at bottom - horizontal with simple icons
+            top_activities = stats.get('top_activities', [])
+            if top_activities:
+                activities_y = int(size * 0.82)
                 
-                # Draw value
-                draw.text((stat_x, stats_y), value, fill=strava_orange, font=stat_value_font)
+                # Activity type icons (simple text-based symbols)
+                activity_icons = {
+                    'Run': '🏃',
+                    'Ride': '🚴',
+                    'Hike': '🥾',
+                    'Walk': '🚶',
+                    'Swim': '🏊',
+                    'Trail Run': '🏃',
+                    'Gravel Ride': '🚴',
+                    'Mountain Bike Ride': '🚵',
+                }
                 
-                # Draw label
-                value_bbox = draw.textbbox((0, 0), value, font=stat_value_font)
-                value_height = value_bbox[3] - value_bbox[1]
-                label_y = stats_y + value_height + int(height * 0.015)
-                draw.text((stat_x, label_y), label, fill=muted_color, font=stat_label_font)
+                # Calculate total width for centering
+                num_activities = min(len(top_activities), 3)
+                item_width = int(size * 0.28)
+                total_width = num_activities * item_width
+                start_x = (width - total_width) // 2
+                
+                for i, activity in enumerate(top_activities[:3]):
+                    activity_type = activity.get('type', 'Activity')
+                    activity_count = activity.get('count', 0)
+                    
+                    item_x = start_x + i * item_width + item_width // 2
+                    
+                    # Activity type name
+                    type_bbox = draw.textbbox((0, 0), activity_type, font=activity_font)
+                    type_width = type_bbox[2] - type_bbox[0]
+                    draw.text((item_x - type_width // 2, activities_y), activity_type, fill=text_color, font=activity_font)
+                    
+                    # Count below
+                    count_text = str(activity_count)
+                    count_bbox = draw.textbbox((0, 0), count_text, font=label_font)
+                    count_width = count_bbox[2] - count_bbox[0]
+                    count_y = activities_y + type_bbox[3] - type_bbox[1] + int(size * 0.015)
+                    draw.text((item_x - count_width // 2, count_y), count_text, fill=strava_orange, font=label_font)
             
             # Save image
             img.save(output_path, 'PNG')

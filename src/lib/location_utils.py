@@ -144,7 +144,10 @@ class LocationUtils:
             
             address = result.get('address', {})
             
-            if level == 'city':
+            if level == 'country':
+                # Return country name
+                name = address.get('country')
+            elif level == 'city':
                 # Priority order for broad/city-level names
                 name = (
                     address.get('city') or

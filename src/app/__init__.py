@@ -583,6 +583,30 @@ def get_user_stats():
                 'clusters': tri_clusters
             })
         
+        # Calculate countries visited (sample unique locations to avoid API rate limits)
+        logger.info("🌍 Calculating countries visited...")
+        countries_set = set()
+        sampled_coords = set()
+        
+        for activity in all_activities:
+            start_latlng = activity.get('start_latlng')
+            if start_latlng and len(start_latlng) == 2:
+                # Round to 1 decimal place to group nearby activities (avoid duplicate API calls)
+                lat_rounded = round(start_latlng[0], 1)
+                lon_rounded = round(start_latlng[1], 1)
+                coord_key = (lat_rounded, lon_rounded)
+                
+                if coord_key not in sampled_coords:
+                    sampled_coords.add(coord_key)
+                    # Limit to prevent too many API calls
+                    if len(sampled_coords) <= 50:
+                        country = LocationUtils.reverse_geocode(start_latlng[0], start_latlng[1], level='country')
+                        if country:
+                            countries_set.add(country)
+        
+        countries_count = len(countries_set)
+        logger.info(f"✅ Found {countries_count} countries: {countries_set}")
+        
         result = {
             'success': True,
             'year': year,
@@ -596,7 +620,8 @@ def get_user_stats():
                 'distance_km': round(total_distance / 1000, 1),
                 'elevation_m': round(total_elevation),
                 'time_hours': round(total_time / 3600, 1),
-                'kudos': total_kudos
+                'kudos': total_kudos,
+                'countries': countries_count
             },
             'top_activities': top_activities
         }
@@ -1000,13 +1025,25 @@ def generate_stats_image():
         
         # Prepare stats from cached data (already converted)
         total_stats = cached.get('total_stats', {})
+        top_activities = cached.get('top_activities', [])
+        
+        # Get top 3 activity types (excluding Triathlon which is synthetic)
+        top_3_activities = []
+        for activity in top_activities[:4]:  # Get up to 4 to skip Triathlon if first
+            if activity.get('type') != 'Triathlon':
+                top_3_activities.append({
+                    'type': activity.get('type'),
+                    'count': activity.get('count')
+                })
+            if len(top_3_activities) >= 3:
+                break
         
         stats = {
             'activities': total_stats.get('activities', 0),
             'distance_km': total_stats.get('distance_km', 0),
-            'elevation_m': total_stats.get('elevation_m', 0),
-            'time_hours': total_stats.get('time_hours', 0),
-            'kudos': total_stats.get('kudos', 0)
+            'kudos': total_stats.get('kudos', 0),
+            'countries': total_stats.get('countries', 0),
+            'top_activities': top_3_activities
         }
         
         # Generate the image
