@@ -2,6 +2,10 @@
 
 Generate beautiful, shareable maps of your Strava activities — your personal "year in review" visualization.
 
+<p align="center">
+  <img src="samples/sample_1.png" width="300" alt="Sample 1">
+  <img src="samples/sample_2.png" width="300" alt="Sample 2">
+</p>
 
 ## Features
 
