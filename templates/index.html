@@ -391,12 +391,6 @@
             display: flex;
             flex-direction: column;
             padding: 48px 40px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .stats-summary-mini:hover {
-            background: var(--bg-card-hover);
         }
 
         .stats-summary-header {
@@ -1235,7 +1229,7 @@
                 <div class="welcome-section">
                     <h1 class="welcome-title">Hey ${data.athlete.firstname}!</h1>
                     <p class="welcome-subtitle">
-                        Here's your year in motion. Click on any area to generate your wrap!
+                        Here's your Strava Wrapped! Click on any area to generate your wrap.
                         <button class="btn-refresh" onclick="loadStats(true)" title="Refresh stats">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M23 4v6h-6M1 20v-6h6"/>
@@ -1247,7 +1241,7 @@
 
                 <!-- Stats Summary Card -->
                 <div class="stats-summary-card" id="statsSummaryCard">
-                    <div class="stats-summary-mini" id="statsSummaryMini" onclick="toggleStatsExpand()">
+                    <div class="stats-summary-mini" id="statsSummaryMini">
                         <div class="stats-summary-header">My <span class="year">${data.year}</span> Strava Wrap</div>
                         <div class="stats-summary-main">
                             <div class="stats-summary-stat">
@@ -1277,39 +1271,11 @@
                                 return sorted.slice(0, limit).map(activity => `
                                     <div class="stats-activity-item">
                                         <span class="stats-activity-icon">${activityIcons[activity.type] || activityIcons.default}</span>
-                                        <span class="stats-activity-name">${activity.type}</span>
+                                        <span class="stats-activity-name">${activity.count > 1 ? activity.type + 's' : activity.type}</span>
                                         <span class="stats-activity-count">${activity.count}</span>
                                     </div>
                                 `).join('');
                             })()}
-                        </div>
-                    </div>
-                    <div class="stats-summary-expanded" id="statsSummaryExpanded" style="display: none;">
-                        <img id="statsImage" src="" alt="Stats Image" />
-                        <div class="stats-image-actions">
-                            <button class="btn-small" onclick="event.stopPropagation(); openStatsImageModal()">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                                    <polyline points="15 3 21 3 21 9"/>
-                                    <line x1="10" y1="14" x2="21" y2="3"/>
-                                </svg>
-                                Open Full Size
-                            </button>
-                            <button class="btn-small" onclick="event.stopPropagation(); downloadStatsImage()">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                    <polyline points="7 10 12 15 17 10"/>
-                                    <line x1="12" y1="15" x2="12" y2="3"/>
-                                </svg>
-                                Download
-                            </button>
-                            <button class="btn-small" onclick="event.stopPropagation(); regenerateStatsImage()">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M23 4v6h-6M1 20v-6h6"/>
-                                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-                                </svg>
-                                Regenerate
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -1323,29 +1289,6 @@
                             <span class="ranking-count">${activity.count}</span>
                         </a>
                     `).join('')}
-                </div>
-
-                <div class="total-stats">
-                    <div class="stat-card">
-                        <div class="stat-value">${data.total_stats.activities}</div>
-                        <div class="stat-label">Activities</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${data.total_stats.distance_km}</div>
-                        <div class="stat-label">Kilometers</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${Math.round(data.total_stats.elevation_m)}</div>
-                        <div class="stat-label">Meters Climbed</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${data.total_stats.time_hours}</div>
-                        <div class="stat-label">Hours</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${data.total_stats.kudos}</div>
-                        <div class="stat-label">Kudos</div>
-                    </div>
                 </div>
 
                 <div class="activity-section">
