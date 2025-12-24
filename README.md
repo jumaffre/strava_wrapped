@@ -9,6 +9,8 @@ Generate beautiful, shareable maps of your Strava activities: your personal "yea
 
 ## Features
 
+
+- ✨ Vibe coded ✨
 - Beautiful map images of your activities with Mapbox styling
 - Automatic clustering by location (e.g., "London Rides", "Paris Runs")
 - Triathlon detection with color-coded swim/bike/run
