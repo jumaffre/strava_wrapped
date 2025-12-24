@@ -778,7 +778,7 @@ def generate_cluster_image():
             stats_data=None,
             title=image_title,
             overlay_stats=overlay_stats,
-            map_style='terrain',  # Terrain style with natural colors
+            map_style='outdoors',  # Outdoors style with full labels
             athlete_info=athlete_info
         )
         
