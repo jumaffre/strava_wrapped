@@ -1119,6 +1119,7 @@ class ImageProcessor:
                     # Check cache first
                     cached_tile = tile_cache.get(provider['name'], zoom, x, y)
                     if cached_tile:
+                        print(f"      📦 Cache hit: {provider['name']} tile z={zoom} x={x} y={y}")
                         # Resize if needed
                         if cached_tile.size[0] != provider_tile_size:
                             cached_tile = cached_tile.resize((provider_tile_size, provider_tile_size), Image.Resampling.LANCZOS)
