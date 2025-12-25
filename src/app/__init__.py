@@ -12,7 +12,9 @@ import requests
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlencode
-from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, session
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, session, Response
+import json
+import time
 from dotenv import load_dotenv
 
 # Configure logging
@@ -354,6 +356,66 @@ def get_image(filename):
     return jsonify({'error': 'Image not found'}), 404
 
 
+@app.route('/api/stats/stream')
+def stream_stats():
+    """
+    Stream activity discovery progress using Server-Sent Events.
+    Sends updates as each activity type is discovered.
+    """
+    if not is_authenticated():
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    def generate():
+        try:
+            year = datetime.now().year
+            strava = get_strava_client()
+            athlete = get_current_user()
+            
+            # Send initial message
+            yield f"data: {json.dumps({'type': 'start', 'message': 'Connecting to Strava...'})}\n\n"
+            
+            # Fetch activities
+            yield f"data: {json.dumps({'type': 'progress', 'message': 'Fetching activities...'})}\n\n"
+            
+            start_of_year = datetime(year, 1, 1).timestamp()
+            end_of_year = datetime(year, 12, 31, 23, 59, 59).timestamp()
+            all_activities = strava.get_activities(per_page=200, after=start_of_year, before=end_of_year)
+            
+            total_count = len(all_activities)
+            yield f"data: {json.dumps({'type': 'total', 'count': total_count})}\n\n"
+            
+            # Count activities by type and send updates
+            activity_counts = {}
+            for activity in all_activities:
+                act_type = activity.get('type', 'Other')
+                if act_type not in activity_counts:
+                    activity_counts[act_type] = {
+                        'count': 0,
+                        'distance': 0
+                    }
+                activity_counts[act_type]['count'] += 1
+                activity_counts[act_type]['distance'] += activity.get('distance', 0)
+            
+            # Send each activity type as discovered (with small delay for visual effect)
+            sorted_types = sorted(activity_counts.items(), key=lambda x: x[1]['count'], reverse=True)
+            for act_type, data in sorted_types:
+                yield f"data: {json.dumps({'type': 'activity', 'activity_type': act_type, 'count': data['count'], 'distance_km': round(data['distance'] / 1000, 1)})}\n\n"
+                time.sleep(0.15)  # Small delay for visual effect
+            
+            # Send completion
+            yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Stream error: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+    
+    return Response(generate(), mimetype='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'
+    })
+
+
 @app.route('/api/stats')
 def get_user_stats():
     """
@@ -426,7 +488,15 @@ def get_user_stats():
         TRIATHLON_BIKE_TYPES = {'Ride', 'Gravel Ride', 'Mountain Bike Ride', 'E-Bike Ride'}
         TRIATHLON_RUN_TYPES = {'Run', 'Trail Run'}
         
-        # Group by activity type (only types with GPS)
+        # Group ALL activities by type (for summary display)
+        all_activity_type_counts = {}
+        for activity in all_activities:
+            act_type = activity.get('type', 'Other')
+            if act_type not in all_activity_type_counts:
+                all_activity_type_counts[act_type] = 0
+            all_activity_type_counts[act_type] += 1
+        
+        # Group by activity type (only types with GPS for map clustering)
         activity_types = {}
         for activity in all_activities:
             act_type = activity.get('type', 'Other')
@@ -623,7 +693,12 @@ def get_user_stats():
                 'kudos': total_kudos,
                 'countries': countries_count
             },
-            'top_activities': top_activities
+            'top_activities': top_activities,
+            'all_activity_types': sorted(
+                [{'type': t, 'count': c} for t, c in all_activity_type_counts.items()],
+                key=lambda x: x['count'],
+                reverse=True
+            )
         }
         
         # Cache the result in session for fast subsequent loads

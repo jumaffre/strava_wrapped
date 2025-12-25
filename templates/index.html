@@ -314,6 +314,101 @@
             color: var(--text-secondary);
         }
 
+        .loading-activity-name {
+            font-size: 1rem;
+            color: var(--strava-orange);
+            font-weight: 600;
+            margin-top: 12px;
+            height: 24px;
+            transition: opacity 0.3s ease;
+        }
+
+        .discovered-activities {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-top: 24px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .discovered-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: discoverSlideIn 0.4s ease forwards;
+        }
+
+        @keyframes discoverSlideIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .discovered-item .discover-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(252, 82, 0, 0.1);
+            border-radius: 50%;
+            color: var(--strava-orange);
+        }
+
+        .discovered-item .discover-icon svg {
+            width: 22px;
+            height: 22px;
+        }
+
+        .discovered-item .discover-info {
+            flex: 1;
+            text-align: left;
+        }
+
+        .discovered-item .discover-type {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .discovered-item .discover-count {
+            color: var(--strava-orange);
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .discovered-item .discover-distance {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 2px;
+        }
+
+        .loading-continue {
+            margin-top: 32px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .loading-continue.visible {
+            opacity: 1;
+        }
+
+        .loading-continue-text {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
         /* Dashboard */
         .dashboard {
             animation: fadeIn 0.5s ease;
@@ -435,20 +530,35 @@
         }
 
         .stats-summary-activities {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            justify-items: center;
-            gap: 20px 32px;
-            padding-top: 40px;
-            max-width: 500px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px 16px;
+            padding-top: 32px;
+            max-width: 560px;
             margin: 0 auto;
         }
 
         .stats-activity-item {
+            flex: 0 0 calc(33.333% - 12px);
+            max-width: calc(33.333% - 12px);
+            box-sizing: border-box;
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: center;
+            gap: 8px;
             color: var(--text-secondary);
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 480px) {
+            .stats-activity-item {
+                flex: 0 0 calc(50% - 8px);
+                max-width: calc(50% - 8px);
+            }
         }
 
         .stats-activity-icon {
@@ -456,17 +566,17 @@
         }
 
         .stats-activity-icon svg {
-            width: 28px;
-            height: 28px;
+            width: 18px;
+            height: 18px;
         }
 
         .stats-activity-name {
-            font-size: 1.15rem;
+            font-size: 0.9rem;
             font-weight: 500;
         }
 
         .stats-activity-count {
-            font-size: 1.15rem;
+            font-size: 0.9rem;
             font-weight: 700;
             color: var(--strava-orange);
         }
@@ -1097,20 +1207,24 @@
         </div>
 
         {% elif loading %}
-        <!-- Loading State (after fresh login) -->
+        <!-- Loading State (after fresh login) - uses SSE streaming -->
         <div class="loading-state" id="loadingState">
-            <div class="loading-spinner"></div>
-            <p class="loading-text">Crunching your numbers...</p>
-            <p class="loading-subtext">Fetching activities and finding your favorite spots</p>
+            <div class="loading-spinner" id="loadingSpinner"></div>
+            <p class="loading-text" id="loadingText">Connecting to Strava...</p>
+            <p class="loading-subtext" id="loadingSubtext">Fetching your activities</p>
+            <div class="discovered-activities" id="discoveredActivities" style="display: flex;"></div>
+            <div class="loading-continue" id="loadingContinue">
+                <div class="loading-continue-text">Loading your dashboard...</div>
+            </div>
         </div>
         <div class="dashboard" id="dashboard" style="display: none;"></div>
 
         {% else %}
-        <!-- Dashboard (authenticated, not fresh) -->
+        <!-- Dashboard (authenticated, cached) -->
         <div class="loading-state" id="loadingState">
-            <div class="loading-spinner"></div>
-            <p class="loading-text">Loading your stats...</p>
-            <p class="loading-subtext">This will only take a moment</p>
+            <div class="loading-spinner" id="loadingSpinner2"></div>
+            <p class="loading-text" id="loadingText">Loading your stats...</p>
+            <p class="loading-subtext" id="loadingSubtext">This will only take a moment</p>
         </div>
         <div class="dashboard" id="dashboard" style="display: none;"></div>
         {% endif %}
@@ -1134,7 +1248,7 @@
             </div>
             <div class="modal-body">
                 <div class="preview-image-container">
-                    <img id="previewImage" class="preview-image" src="" alt="Preview">
+                <img id="previewImage" class="preview-image" src="" alt="Preview">
                 </div>
                 <div class="modal-actions">
                     <a id="customizeBtn" class="btn-share btn-customize" href="#" title="Customize map view">
@@ -1169,9 +1283,9 @@
                             stroke-width="2">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                        </svg>
-                        Copy Image
-                    </button>
+                            </svg>
+                            Copy Image
+                        </button>
                 </div>
             </div>
         </div>
@@ -1181,6 +1295,25 @@
 
     {% if authenticated %}
     <script>
+        // Display name helper
+        const activityDisplayNames = {
+            'Run': 'Run', 'Ride': 'Ride', 'Swim': 'Swim', 'Walk': 'Walk', 'Hike': 'Hike',
+            'WeightTraining': 'Weights', 'StairStepper': 'Stairs', 'VirtualRide': 'Zwift',
+            'VirtualRun': 'Treadmill', 'Trail Run': 'Trail', 'Gravel Ride': 'Gravel',
+            'Mountain Bike Ride': 'MTB', 'E-Bike Ride': 'E-Bike', 'Open Water Swim': 'OWS',
+            'NordicSki': 'Nordic', 'AlpineSki': 'Skiing', 'IceSkate': 'Skating',
+            'RockClimbing': 'Climbing', 'StandUpPaddling': 'SUP', 'Workout': 'Workout',
+            'Yoga': 'Yoga', 'Crossfit': 'CrossFit', 'Elliptical': 'Elliptical',
+            'Rowing': 'Rowing', 'Kayaking': 'Kayak', 'Canoeing': 'Canoe',
+            'Golf': 'Golf', 'Skateboard': 'Skate', 'Tennis': 'Tennis',
+            'Surfing': 'Surf', 'Triathlon': 'Triathlon', 'HIIT': 'HIIT',
+            'Snowboard': 'Snowboard', 'Badminton': 'Badminton', 'Soccer': 'Soccer'
+        };
+
+        function getDisplayName(type) {
+            return activityDisplayNames[type] || type;
+        }
+
         const activityIcons = {
             'Run': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1l-5.2 2.2v4.7h2v-3.4l1.8-.7-1.6 8.1-4.9-1-.4 2 7 1.4z"/></svg>',
             'Trail Run': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1l-5.2 2.2v4.7h2v-3.4l1.8-.7-1.6 8.1-4.9-1-.4 2 7 1.4z"/></svg>',
@@ -1193,17 +1326,105 @@
             'Swim': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M22 21c-1.11 0-1.73-.37-2.18-.64-.37-.22-.6-.36-1.15-.36-.56 0-.78.13-1.15.36-.46.27-1.07.64-2.18.64s-1.73-.37-2.18-.64c-.37-.22-.6-.36-1.15-.36-.56 0-.78.13-1.15.36-.46.27-1.08.64-2.19.64-1.11 0-1.73-.37-2.18-.64-.37-.23-.6-.36-1.15-.36s-.78.13-1.15.36c-.46.27-1.08.64-2.19.64v-2c.56 0 .78-.13 1.15-.36.46-.27 1.08-.64 2.19-.64s1.73.37 2.18.64c.37.23.59.36 1.15.36.56 0 .78-.13 1.15-.36.46-.27 1.08-.64 2.19-.64 1.11 0 1.73.37 2.18.64.37.22.6.36 1.15.36s.78-.13 1.15-.36c.45-.27 1.07-.64 2.18-.64s1.73.37 2.18.64c.37.23.59.36 1.15.36v2zm0-4.5c-1.11 0-1.73-.37-2.18-.64-.37-.22-.6-.36-1.15-.36-.56 0-.78.13-1.15.36-.45.27-1.07.64-2.18.64s-1.73-.37-2.18-.64c-.37-.22-.6-.36-1.15-.36-.56 0-.78.13-1.15.36-.45.27-1.07.64-2.18.64s-1.73-.37-2.18-.64c-.37-.22-.6-.36-1.15-.36s-.78.13-1.15.36c-.47.27-1.09.64-2.2.64v-2c.56 0 .78-.13 1.15-.36.45-.27 1.07-.64 2.18-.64s1.73.37 2.18.64c.37.22.6.36 1.15.36.56 0 .78-.13 1.15-.36.45-.27 1.07-.64 2.18-.64s1.73.37 2.18.64c.37.22.6.36 1.15.36s.78-.13 1.15-.36c.45-.27 1.07-.64 2.18-.64s1.73.37 2.18.64c.37.22.6.36 1.15.36v2zM8.67 12c.56 0 .78-.13 1.15-.36.46-.27 1.08-.64 2.19-.64 1.11 0 1.73.37 2.18.64.37.22.6.36 1.15.36s.78-.13 1.15-.36c.12-.07.26-.15.41-.23L10.48 5C10.19 4.42 9.6 4 8.91 4H7.09c-.69 0-1.28.42-1.57 1L3.2 11.14c.15.08.29.16.41.23.37.22.6.36 1.15.36s.78-.13 1.15-.36c.46-.27 1.08-.64 2.19-.64.56 0 .78.13.57.27zM6.5 7.5h3l1.22 2.44H5.28L6.5 7.5z"/></svg>',
             'Open Water Swim': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M22 21c-1.11 0-1.73-.37-2.18-.64-.37-.22-.6-.36-1.15-.36-.56 0-.78.13-1.15.36-.46.27-1.07.64-2.18.64s-1.73-.37-2.18-.64c-.37-.22-.6-.36-1.15-.36-.56 0-.78.13-1.15.36-.46.27-1.08.64-2.19.64-1.11 0-1.73-.37-2.18-.64-.37-.23-.6-.36-1.15-.36s-.78.13-1.15.36c-.46.27-1.08.64-2.19.64v-2c.56 0 .78-.13 1.15-.36.46-.27 1.08-.64 2.19-.64s1.73.37 2.18.64c.37.23.59.36 1.15.36.56 0 .78-.13 1.15-.36.46-.27 1.08-.64 2.19-.64 1.11 0 1.73.37 2.18.64.37.22.6.36 1.15.36s.78-.13 1.15-.36c.45-.27 1.07-.64 2.18-.64s1.73.37 2.18.64c.37.23.59.36 1.15.36v2zm0-4.5c-1.11 0-1.73-.37-2.18-.64-.37-.22-.6-.36-1.15-.36-.56 0-.78.13-1.15.36-.45.27-1.07.64-2.18.64s-1.73-.37-2.18-.64c-.37-.22-.6-.36-1.15-.36-.56 0-.78.13-1.15.36-.45.27-1.07.64-2.18.64s-1.73-.37-2.18-.64c-.37-.22-.6-.36-1.15-.36s-.78.13-1.15.36c-.47.27-1.09.64-2.2.64v-2c.56 0 .78-.13 1.15-.36.45-.27 1.07-.64 2.18-.64s1.73.37 2.18.64c.37.22.6.36 1.15.36.56 0 .78-.13 1.15-.36.45-.27 1.07-.64 2.18-.64s1.73.37 2.18.64c.37.22.6.36 1.15.36s.78-.13 1.15-.36c.45-.27 1.07-.64 2.18-.64s1.73.37 2.18.64c.37.22.6.36 1.15.36v2zM8.67 12c.56 0 .78-.13 1.15-.36.46-.27 1.08-.64 2.19-.64 1.11 0 1.73.37 2.18.64.37.22.6.36 1.15.36s.78-.13 1.15-.36c.12-.07.26-.15.41-.23L10.48 5C10.19 4.42 9.6 4 8.91 4H7.09c-.69 0-1.28.42-1.57 1L3.2 11.14c.15.08.29.16.41.23.37.22.6.36 1.15.36s.78-.13 1.15-.36c.46-.27 1.08-.64 2.19-.64.56 0 .78.13.57.27zM6.5 7.5h3l1.22 2.44H5.28L6.5 7.5z"/></svg>',
             'Triathlon': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 4.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm4.5 5.5c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm-9-3.5c0-2.8-2.2-5-5-5s-5 2.2-5 5 2.2 5 5 5 5-2.2 5-5zm-5 3.5c-1.9 0-3.5-1.6-3.5-3.5S3.1 11 5 11s3.5 1.6 3.5 3.5S6.9 18.5 5 18.5zm5.8-8.5l2.4-2.4.8.8c1.3 1.3 3 2.1 5.1 2.1V8.5c-1.5 0-2.7-.6-3.6-1.5l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 7.9c-.4.4-.6.9-.6 1.4 0 .6.2 1.1.6 1.4L11 13.5v5h2v-6.2l-2.2-2.3z"/></svg>',
+            'Workout': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/></svg>',
+            'WeightTraining': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/></svg>',
+            'Yoga': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm7 14.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5zM7 22l2.41-2.41c-.35-.34-.61-.77-.72-1.25L8 16l-2.5 2.5L4.09 17c-.35.24-.59.61-.59 1.05V22H7zm3.5-5.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5zM21.5 22v-3.95c0-.44-.24-.81-.59-1.05l-1.41 1.41L17 16l-.69 2.34c-.11.48-.37.91-.72 1.25L18 22h3.5zM12 6c-2.21 0-4 1.79-4 4v2.68c0 1.04.52 2 1.38 2.56l.62.38V18h4v-2.38l.62-.38c.86-.56 1.38-1.52 1.38-2.56V10c0-2.21-1.79-4-4-4z"/></svg>',
+            'Crossfit': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/></svg>',
+            'Elliptical': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1l-5.2 2.2v4.7h2v-3.4l1.8-.7-1.6 8.1-4.9-1-.4 2 7 1.4z"/></svg>',
+            'StairStepper': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>',
+            'VirtualRide': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.3 1.3 3 2.1 5.1 2.1V9c-1.5 0-2.7-.6-3.6-1.5l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4c-.4.4-.6.9-.6 1.4 0 .6.2 1.1.6 1.4L11 14v5h2v-6.2l-2.2-2.3zM19 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/></svg>',
+            'VirtualRun': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1l-5.2 2.2v4.7h2v-3.4l1.8-.7-1.6 8.1-4.9-1-.4 2 7 1.4z"/></svg>',
+            'Rowing': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 14.5L4 19l1.5 1.5L9 17h1c2 0 3.5-1.5 3.5-3.5V13c0-.28.22-.5.5-.5s.5.22.5.5v.5c0 2.5-2 4.5-4.5 4.5H8.5zM15 4.5c.5 0 1-.17 1.41-.48.42.31.91.48 1.41.48.83 0 1.5-.67 1.5-1.5S18.65 1.5 17.82 1.5c-.5 0-.99.17-1.41.48-.42-.31-.91-.48-1.41-.48-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5zm5.95 3.68l-1.41-1.41c-.56-.56-1.32-.88-2.12-.88s-1.56.31-2.12.88l-1.76 1.76c-.44.44-.68 1.02-.68 1.63v2.5l-1.9 1.9c-.78.78-.78 2.05 0 2.83L12.59 19l5.94-5.94c.78-.78.78-2.05 0-2.83L17.12 8.82l1.41-1.41c.78-.78.78-2.05 0-2.83z"/></svg>',
+            'Kayaking': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>',
+            'Canoeing': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>',
+            'Golf': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 16c3.87 0 7-3.13 7-7s-3.13-7-7-7-7 3.13-7 7 3.13 7 7 7zm0-12c2.76 0 5 2.24 5 5s-2.24 5-5 5-5-2.24-5-5 2.24-5 5-5zm1 15h-2v3h2v-3z"/></svg>',
+            'Skateboard': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13 7.5h-2v4h2v-4zm8 6.5c0 .55-.45 1-1 1h-1v-2h1c.55 0 1 .45 1 1zM4 14c0-.55.45-1 1-1h1v2H5c-.55 0-1-.45-1-1zm16-4H4c-.55 0-1 .45-1 1v2c0 .55.45 1 1 1h2c0 1.1.9 2 2 2s2-.9 2-2h4c0 1.1.9 2 2 2s2-.9 2-2h2c.55 0 1-.45 1-1v-2c0-.55-.45-1-1-1z"/></svg>',
+            'RockClimbing': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.56-.89-1.68-1.25-2.65-.84L6 8.3V13h2V9.6l1.8-.7z"/></svg>',
+            'Tennis': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.52 2.49c-2.34-2.34-6.62-1.87-9.55 1.06-1.6 1.6-2.52 3.87-2.54 5.46-.02 1.58.26 3.89-1.35 5.5l-4.24 4.24 1.42 1.42 4.24-4.24c1.61-1.61 3.92-1.33 5.5-1.35s3.86-.94 5.46-2.54c2.92-2.93 3.4-7.21 1.06-9.55zm-9.2 9.19c-1.53-1.53-1.05-4.61 1.06-6.72s5.18-2.59 6.72-1.06c1.53 1.53 1.05 4.61-1.06 6.72s-5.18 2.59-6.72 1.06z"/></svg>',
+            'Badminton': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.52 2.49c-2.34-2.34-6.62-1.87-9.55 1.06-1.6 1.6-2.52 3.87-2.54 5.46-.02 1.58.26 3.89-1.35 5.5l-4.24 4.24 1.42 1.42 4.24-4.24c1.61-1.61 3.92-1.33 5.5-1.35s3.86-.94 5.46-2.54c2.92-2.93 3.4-7.21 1.06-9.55zm-9.2 9.19c-1.53-1.53-1.05-4.61 1.06-6.72s5.18-2.59 6.72-1.06c1.53 1.53 1.05 4.61-1.06 6.72s-5.18 2.59-6.72 1.06z"/></svg>',
+            'Soccer': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 2.07c2.26.22 4.27 1.31 5.67 2.93H13V4.07zM8 4.07V7H2.33c1.4-1.62 3.41-2.71 5.67-2.93zM4.06 8H8v4H4.06c-.22-.63-.37-1.3-.37-2s.15-1.37.37-2zM8 13v4H2.33c-1.39-1.62-3.27-2.71-5.67-2.93V13H8zm2 6.93V17h4v2.93c-1.28.12-2.72.12-4 0zM17.67 17H13v-4h3.94c.22.63.37 1.3.37 2s-.15 1.37-.37 2zm.27-6H14V7h5.67c1.4 1.62 2.23 3.71 2.23 6h-3.96z"/></svg>',
+            'Squash': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.52 2.49c-2.34-2.34-6.62-1.87-9.55 1.06-1.6 1.6-2.52 3.87-2.54 5.46-.02 1.58.26 3.89-1.35 5.5l-4.24 4.24 1.42 1.42 4.24-4.24c1.61-1.61 3.92-1.33 5.5-1.35s3.86-.94 5.46-2.54c2.92-2.93 3.4-7.21 1.06-9.55zm-9.2 9.19c-1.53-1.53-1.05-4.61 1.06-6.72s5.18-2.59 6.72-1.06c1.53 1.53 1.05 4.61-1.06 6.72s-5.18 2.59-6.72 1.06z"/></svg>',
+            'Pilates': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm7 14.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5zM7 22l2.41-2.41c-.35-.34-.61-.77-.72-1.25L8 16l-2.5 2.5L4.09 17c-.35.24-.59.61-.59 1.05V22H7zm3.5-5.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5zM21.5 22v-3.95c0-.44-.24-.81-.59-1.05l-1.41 1.41L17 16l-.69 2.34c-.11.48-.37.91-.72 1.25L18 22h3.5zM12 6c-2.21 0-4 1.79-4 4v2.68c0 1.04.52 2 1.38 2.56l.62.38V18h4v-2.38l.62-.38c.86-.56 1.38-1.52 1.38-2.56V10c0-2.21-1.79-4-4-4z"/></svg>',
+            'HIIT': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z"/></svg>',
+            'NordicSki': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 4.5c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2.7 5.9L13.4 8c-.42-.39-.98-.6-1.56-.6H11c-.72 0-1.35.46-1.58 1.13L8.05 12.6l-1.13-.4c-.24-.08-.41-.29-.41-.55V10c0-.55-.45-1-1-1H3.5c-.28 0-.5.22-.5.5s.22.5.5.5H5v1.65c0 .84.55 1.59 1.35 1.84l1.75.62-.2.6c-.17.51.05 1.06.52 1.33l4 2.2c.33.18.69.26 1.04.26.76 0 1.49-.37 1.94-1.04l1.88-2.81-1.11-.74L14.63 16l-3.23-1.77.7-2.09 1.66 1.62c.19.19.45.29.71.29h1.1l.9 2.7c.2.61.77 1.02 1.41 1.02.12 0 .24-.01.37-.05.73-.2 1.17-.97.97-1.7l-1.12-3.37c-.15-.46-.51-.82-.96-.98l-1.47-.53-.9-1.25z"/></svg>',
+            'AlpineSki': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 4.5c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2.7 5.9L13.4 8c-.42-.39-.98-.6-1.56-.6H11c-.72 0-1.35.46-1.58 1.13L8.05 12.6l-1.13-.4c-.24-.08-.41-.29-.41-.55V10c0-.55-.45-1-1-1H3.5c-.28 0-.5.22-.5.5s.22.5.5.5H5v1.65c0 .84.55 1.59 1.35 1.84l1.75.62-.2.6c-.17.51.05 1.06.52 1.33l4 2.2c.33.18.69.26 1.04.26.76 0 1.49-.37 1.94-1.04l1.88-2.81-1.11-.74L14.63 16l-3.23-1.77.7-2.09 1.66 1.62c.19.19.45.29.71.29h1.1l.9 2.7c.2.61.77 1.02 1.41 1.02.12 0 .24-.01.37-.05.73-.2 1.17-.97.97-1.7l-1.12-3.37c-.15-.46-.51-.82-.96-.98l-1.47-.53-.9-1.25z"/></svg>',
+            'Snowboard': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 4.5c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2.7 5.9L13.4 8c-.42-.39-.98-.6-1.56-.6H11c-.72 0-1.35.46-1.58 1.13L8.05 12.6l-1.13-.4c-.24-.08-.41-.29-.41-.55V10c0-.55-.45-1-1-1H3.5c-.28 0-.5.22-.5.5s.22.5.5.5H5v1.65c0 .84.55 1.59 1.35 1.84l1.75.62-.2.6c-.17.51.05 1.06.52 1.33l4 2.2c.33.18.69.26 1.04.26.76 0 1.49-.37 1.94-1.04l1.88-2.81-1.11-.74L14.63 16l-3.23-1.77.7-2.09 1.66 1.62c.19.19.45.29.71.29h1.1l.9 2.7c.2.61.77 1.02 1.41 1.02.12 0 .24-.01.37-.05.73-.2 1.17-.97.97-1.7l-1.12-3.37c-.15-.46-.51-.82-.96-.98l-1.47-.53-.9-1.25z"/></svg>',
+            'IceSkate': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 17c0 1.66-1.34 3-3 3h-2v-2h3v-4h-2V9l-6-4-6 4v5H3v6h9v2H6c-1.66 0-3-1.34-3-3v-5c0-.55.45-1 1-1h2V9c0-.4.24-.77.62-.92l6-4c.22-.15.52-.15.76 0l6 4c.38.15.62.52.62.92v5h2c.55 0 1 .45 1 1v5z"/></svg>',
+            'Surfing': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3c-1.5 0-2.79.56-3.66 1.5C16.5 3.56 15.17 3 13.5 3c-1.5 0-2.79.56-3.66 1.5C8.83 3.56 7.5 3 6 3c-1.5 0-2.79.56-3.66 1.5-.35.38-.34 1 .04 1.35.38.35 1 .34 1.35-.04C4.27 5.26 5.07 5 6 5c.93 0 1.73.26 2.27.81.35.35.92.35 1.27 0C10.08 5.26 10.88 5 11.81 5c.93 0 1.73.26 2.27.81.35.35.92.35 1.27 0C15.88 5.26 16.68 5 17.61 5c.93 0 1.73.26 2.27.81.35.38.97.39 1.35.04.38-.35.39-.97.04-1.35C20.4 3.56 19.17 3 17.61 3H21zM17.5 9c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-8 4l3-3 2 2 3.5-4L22 14H6l3.5-5zm-5.5 7c1.5 0 2.79-.56 3.66-1.5.87.94 2.2 1.5 3.84 1.5s2.79-.56 3.66-1.5c.87.94 2.2 1.5 3.84 1.5s2.79-.56 3.66-1.5c.35-.38.34-1-.04-1.35-.38-.35-1-.34-1.35.04-.54.55-1.34.81-2.27.81-.93 0-1.73-.26-2.27-.81-.35-.35-.92-.35-1.27 0-.54.55-1.34.81-2.27.81-.93 0-1.73-.26-2.27-.81-.35-.35-.92-.35-1.27 0-.54.55-1.34.81-2.27.81-.93 0-1.73-.26-2.27-.81-.35-.38-.97-.39-1.35-.04-.38.35-.39.97-.04 1.35C1.21 19.44 2.54 20 4 20z"/></svg>',
+            'Windsurf': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>',
+            'Kitesurf': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>',
+            'StandUpPaddling': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>',
+            'Handcycle': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.3 1.3 3 2.1 5.1 2.1V9c-1.5 0-2.7-.6-3.6-1.5l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4c-.4.4-.6.9-.6 1.4 0 .6.2 1.1.6 1.4L11 14v5h2v-6.2l-2.2-2.3zM19 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/></svg>',
+            'Wheelchair': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.3 1.3 3 2.1 5.1 2.1V9c-1.5 0-2.7-.6-3.6-1.5l-1.9-1.9c-.5-.4-1-.6-1.6-.6s-1.1.2-1.4.6L7.8 8.4c-.4.4-.6.9-.6 1.4 0 .6.2 1.1.6 1.4L11 14v5h2v-6.2l-2.2-2.3zM19 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/></svg>',
             'default': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>'
         };
 
         async function loadStats(refresh = false) {
+            const loadingState = document.getElementById('loadingState');
+            const discoveredContainer = document.getElementById('discoveredActivities');
+            const loadingText = document.getElementById('loadingText');
+            const loadingSubtext = document.getElementById('loadingSubtext');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const loadingContinue = document.getElementById('loadingContinue');
+            const isFreshLoad = discoveredContainer !== null; // Fresh load has discovery container
+            
             try {
-                // Show loading state for refresh
                 const refreshBtn = document.querySelector('.btn-refresh');
                 if (refreshBtn) {
                     refreshBtn.classList.add('loading');
                 }
 
+                if (isFreshLoad && !refresh) {
+                    // Use SSE streaming for fresh loads to show live discovery
+                    await new Promise((resolve, reject) => {
+                        const eventSource = new EventSource('/api/stats/stream');
+                        let activitiesFound = [];
+                        
+                        eventSource.onmessage = (event) => {
+                            const data = JSON.parse(event.data);
+                            
+                            if (data.type === 'start' || data.type === 'progress') {
+                                if (loadingText) loadingText.textContent = data.message;
+                            } else if (data.type === 'total') {
+                                if (loadingText) loadingText.textContent = `Found ${data.count} activities!`;
+                                if (loadingSubtext) loadingSubtext.textContent = 'Analyzing your year...';
+                                if (loadingSpinner) loadingSpinner.style.display = 'none';
+                            } else if (data.type === 'activity') {
+                                // Add activity to the display
+                                const displayName = getDisplayName(data.activity_type);
+                                const icon = activityIcons[data.activity_type] || activityIcons.default;
+                                const itemHtml = `
+                                    <div class="discovered-item">
+                                        <div class="discover-icon">${icon}</div>
+                                        <div class="discover-info">
+                                            <div class="discover-type">${displayName}</div>
+                                            ${data.distance_km > 0 ? `<div class="discover-distance">${data.distance_km} km</div>` : ''}
+                                        </div>
+                                        <div class="discover-count">${data.count}</div>
+                                    </div>
+                                `;
+                                if (discoveredContainer) {
+                                    discoveredContainer.insertAdjacentHTML('beforeend', itemHtml);
+                                }
+                                activitiesFound.push(data);
+                            } else if (data.type === 'complete') {
+                                eventSource.close();
+                                if (loadingContinue) loadingContinue.classList.add('visible');
+                                setTimeout(resolve, 800);
+                            } else if (data.type === 'error') {
+                                eventSource.close();
+                                reject(new Error(data.message));
+                            }
+                        };
+                        
+                        eventSource.onerror = () => {
+                            eventSource.close();
+                            reject(new Error('Connection lost'));
+                        };
+                    });
+                }
+
+                // Fetch full stats data
                 const url = refresh ? '/api/stats?refresh=1' : '/api/stats';
                 const response = await fetch(url);
                 const data = await response.json();
@@ -1215,13 +1436,15 @@
                 renderDashboard(data);
             } catch (error) {
                 console.error('Error loading stats:', error);
-                document.getElementById('loadingState').innerHTML = `
-                    <div class="error-banner">
-                        Failed to load stats: ${error.message}
-                        <br><br>
-                        <a href="/" style="color: var(--strava-orange);">Try again</a>
-                    </div>
-                `;
+                if (loadingState) {
+                    loadingState.innerHTML = `
+                        <div class="error-banner">
+                            Failed to load stats: ${error.message}
+                            <br><br>
+                            <a href="/" style="color: var(--strava-orange);">Try again</a>
+                        </div>
+                    `;
+                }
             }
         }
 
@@ -1251,31 +1474,56 @@
                             <div class="stats-summary-stat">
                                 <span class="stats-summary-value">${data.total_stats.activities}</span>
                                 <span class="stats-summary-label">activities</span>
-                            </div>
+                        </div>
                             <div class="stats-summary-stat">
                                 <span class="stats-summary-value">${Math.round(data.total_stats.distance_km)}</span>
                                 <span class="stats-summary-label">km</span>
-                            </div>
+                    </div>
                             <div class="stats-summary-stat">
                                 <span class="stats-summary-value">${data.total_stats.kudos}</span>
                                 <span class="stats-summary-label">kudos</span>
-                            </div>
+                        </div>
                             ${data.total_stats.countries ? `
                             <div class="stats-summary-stat">
                                 <span class="stats-summary-value">${data.total_stats.countries}</span>
                                 <span class="stats-summary-label">countries</span>
-                            </div>
+                    </div>
                             ` : ''}
                         </div>
                         <div class="stats-summary-activities">
                             ${(() => {
-                    const sorted = data.top_activities.sort((a, b) => b.count - a.count);
-                    const hasTriathlon = sorted.some(a => a.type === 'Triathlon');
-                    const limit = hasTriathlon ? Math.min(sorted.length, 5) : 3;
-                    return sorted.slice(0, limit).map(activity => `
+                    // Use all_activity_types for complete summary (includes non-GPS activities)
+                    const allTypes = data.all_activity_types || data.top_activities;
+                    const sorted = allTypes.sort((a, b) => b.count - a.count);
+                    // Show all activity types (will wrap to up to 3 rows automatically)
+                    return sorted.map(activity => `
                                     <div class="stats-activity-item">
                                         <span class="stats-activity-icon">${activityIcons[activity.type] || activityIcons.default}</span>
-                                        <span class="stats-activity-name">${activity.count > 1 ? activity.type + 's' : activity.type}</span>
+                                        <span class="stats-activity-name">${(() => {
+                            const type = activity.type;
+                            // Display name mappings (camelCase to readable)
+                            const displayNames = {
+                                'Run': 'Run', 'Ride': 'Ride', 'Swim': 'Swim', 'Walk': 'Walk', 'Hike': 'Hike',
+                                'WeightTraining': 'Weights', 'StairStepper': 'Stairs', 'VirtualRide': 'Zwift',
+                                'VirtualRun': 'Treadmill', 'Trail Run': 'Trail', 'Gravel Ride': 'Gravel',
+                                'Mountain Bike Ride': 'MTB', 'E-Bike Ride': 'E-Bike', 'Open Water Swim': 'OWS',
+                                'NordicSki': 'Nordic', 'AlpineSki': 'Skiing', 'IceSkate': 'Skating',
+                                'RockClimbing': 'Climbing', 'StandUpPaddling': 'SUP', 'Workout': 'Workout',
+                                'Yoga': 'Yoga', 'Crossfit': 'CrossFit', 'Elliptical': 'Elliptical',
+                                'Rowing': 'Rowing', 'Kayaking': 'Kayak', 'Canoeing': 'Canoe',
+                                'Golf': 'Golf', 'Skateboard': 'Skate', 'Tennis': 'Tennis',
+                                'Badminton': 'Badminton', 'Soccer': 'Soccer', 'Squash': 'Squash',
+                                'Pilates': 'Pilates', 'HIIT': 'HIIT', 'Snowboard': 'Snowboard',
+                                'Surfing': 'Surf', 'Windsurf': 'Windsurf', 'Kitesurf': 'Kitesurf',
+                                'Triathlon': 'Triathlon', 'Handcycle': 'Handcycle', 'Wheelchair': 'Wheelchair'
+                            };
+                            const displayName = displayNames[type] || type;
+                            if (activity.count <= 1) return displayName;
+                            // Types that don't pluralize (single-word activities that already work)
+                            const noPlural = ['Yoga', 'Pilates', 'HIIT', 'CrossFit', 'Weights', 'Nordic', 'Skiing', 'Zwift', 'OWS', 'MTB', 'SUP'];
+                            if (noPlural.includes(displayName)) return displayName;
+                            return displayName + 's';
+                        })()}</span>
                                         <span class="stats-activity-count">${activity.count}</span>
                                     </div>
                                 `).join('');
@@ -1328,15 +1576,15 @@
                             <div class="clusters-section">
                                 <div class="clusters-grid">
                                     ${activity.clusters.length > 0
-                        ? activity.clusters.map(cluster => `
+                    ? activity.clusters.map(cluster => `
                                             <button class="cluster-btn" 
                                                 onclick="generateCluster('${activity.type}', '${cluster.name}', ${JSON.stringify(cluster.activity_ids).replace(/"/g, '&quot;')}, event)">
                                                 <span class="cluster-name">${cluster.name}</span>
                                                 <span class="cluster-count">${cluster.count}</span>
                                             </button>
                                         `).join('')
-                        : '<p class="no-clusters">No GPS data available for these activities</p>'
-                    }
+                    : '<p class="no-clusters">No GPS data available for these activities</p>'
+                }
                                 </div>
                             </div>
                         </div>
