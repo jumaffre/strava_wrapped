@@ -440,7 +440,7 @@ class ImageProcessor:
             output_path: Path to save the image
             title: Title text (unused, we use "My <year> Strava Wrapped")
             year: Year number
-            stats: Dict with 'activities', 'distance_km', 'kudos', 'countries', 'top_activities'
+            stats: Dict with 'activities', 'distance_km', 'kudos', 'top_activities'
             theme: 'dark' or 'light'
             size: Image size in pixels (square)
         
@@ -529,11 +529,7 @@ class ImageProcessor:
             kudos = stats.get('kudos', 0)
             if kudos > 0:
                 secondary_stats.append((str(kudos), "kudos"))
-            
-            countries = stats.get('countries', 0)
-            if countries > 0:
-                secondary_stats.append((str(countries), "countries" if countries > 1 else "country"))
-            
+
             if secondary_stats:
                 stat_spacing = width // (len(secondary_stats) + 1)
                 for i, (value, label) in enumerate(secondary_stats):
@@ -551,22 +547,10 @@ class ImageProcessor:
                     lbl_y = secondary_y + val_height + int(size * 0.02)
                     draw.text((x - lbl_width // 2, lbl_y), label, fill=muted_color, font=label_font)
             
-            # Top activities at bottom - horizontal with simple icons
+            # Top activities at bottom - horizontal layout
             top_activities = stats.get('top_activities', [])
             if top_activities:
                 activities_y = int(size * 0.82)
-                
-                # Activity type icons (simple text-based symbols)
-                activity_icons = {
-                    'Run': '🏃',
-                    'Ride': '🚴',
-                    'Hike': '🥾',
-                    'Walk': '🚶',
-                    'Swim': '🏊',
-                    'Trail Run': '🏃',
-                    'Gravel Ride': '🚴',
-                    'Mountain Bike Ride': '🚵',
-                }
                 
                 # Calculate total width for centering
                 num_activities = min(len(top_activities), 3)

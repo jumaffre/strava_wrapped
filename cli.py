@@ -148,7 +148,7 @@ def display_statistics(stats, activities, strava, debug=False):
     
     # Activity type breakdown
     if stats['activity_types']:
-        print(f"\n🏃 Activity Breakdown:")
+        print(f"\nActivity Breakdown:")
         for activity_type, data in sorted(stats['activity_types'].items(), 
                                          key=lambda x: x[1]['count'], reverse=True):
             count = data['count']

@@ -1248,7 +1248,7 @@
             </div>
             <div class="modal-body">
                 <div class="preview-image-container">
-                <img id="previewImage" class="preview-image" src="" alt="Preview">
+                    <img id="previewImage" class="preview-image" src="" alt="Preview">
                 </div>
                 <div class="modal-actions">
                     <a id="customizeBtn" class="btn-share btn-customize" href="#" title="Customize map view">
@@ -1283,9 +1283,9 @@
                             stroke-width="2">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                            </svg>
-                            Copy Image
-                        </button>
+                        </svg>
+                        Copy Image
+                    </button>
                 </div>
             </div>
         </div>
@@ -1367,7 +1367,7 @@
             const loadingSpinner = document.getElementById('loadingSpinner');
             const loadingContinue = document.getElementById('loadingContinue');
             const isFreshLoad = discoveredContainer !== null; // Fresh load has discovery container
-            
+
             try {
                 const refreshBtn = document.querySelector('.btn-refresh');
                 if (refreshBtn) {
@@ -1379,10 +1379,10 @@
                     await new Promise((resolve, reject) => {
                         const eventSource = new EventSource('/api/stats/stream');
                         let activitiesFound = [];
-                        
+
                         eventSource.onmessage = (event) => {
                             const data = JSON.parse(event.data);
-                            
+
                             if (data.type === 'start' || data.type === 'progress') {
                                 if (loadingText) loadingText.textContent = data.message;
                             } else if (data.type === 'total') {
@@ -1392,10 +1392,8 @@
                             } else if (data.type === 'activity') {
                                 // Add activity to the display
                                 const displayName = getDisplayName(data.activity_type);
-                                const icon = activityIcons[data.activity_type] || activityIcons.default;
                                 const itemHtml = `
                                     <div class="discovered-item">
-                                        <div class="discover-icon">${icon}</div>
                                         <div class="discover-info">
                                             <div class="discover-type">${displayName}</div>
                                             ${data.distance_km > 0 ? `<div class="discover-distance">${data.distance_km} km</div>` : ''}
@@ -1416,7 +1414,7 @@
                                 reject(new Error(data.message));
                             }
                         };
-                        
+
                         eventSource.onerror = () => {
                             eventSource.close();
                             reject(new Error('Connection lost'));
@@ -1498,7 +1496,6 @@
                     // Show all activity types (will wrap to up to 3 rows automatically)
                     return sorted.map(activity => `
                                     <div class="stats-activity-item">
-                                        <span class="stats-activity-icon">${activityIcons[activity.type] || activityIcons.default}</span>
                                         <span class="stats-activity-name">${(() => {
                             const type = activity.type;
                             // Display name mappings (camelCase to readable)
@@ -1536,7 +1533,6 @@
                     ${data.top_activities.map((activity, index) => `
                         <a href="#activity-${activity.type.toLowerCase().replace(/\s+/g, '-')}" class="ranking-pill">
                             <span class="ranking-number">#${index + 1}</span>
-                            <span class="ranking-icon">${activityIcons[activity.type] || activityIcons.default}</span>
                             <span class="ranking-name">${activity.type}</span>
                             <span class="ranking-count">${activity.count}</span>
                         </a>
@@ -1549,9 +1545,6 @@
                         <div class="activity-type-card" id="activity-${activity.type.toLowerCase().replace(/\s+/g, '-')}">
                             <div class="activity-header">
                                 <div class="activity-type-name">
-                                    <div class="activity-type-icon">
-                                        ${activityIcons[activity.type] || activityIcons.default}
-                                    </div>
                                     ${activity.type}
                                 </div>
                                 <div class="activity-stats">
@@ -1576,15 +1569,15 @@
                             <div class="clusters-section">
                                 <div class="clusters-grid">
                                     ${activity.clusters.length > 0
-                    ? activity.clusters.map(cluster => `
+                        ? activity.clusters.map(cluster => `
                                             <button class="cluster-btn" 
                                                 onclick="generateCluster('${activity.type}', '${cluster.name}', ${JSON.stringify(cluster.activity_ids).replace(/"/g, '&quot;')}, event)">
                                                 <span class="cluster-name">${cluster.name}</span>
                                                 <span class="cluster-count">${cluster.count}</span>
                                             </button>
                                         `).join('')
-                    : '<p class="no-clusters">No GPS data available for these activities</p>'
-                }
+                        : '<p class="no-clusters">No GPS data available for these activities</p>'
+                    }
                                 </div>
                             </div>
                         </div>
