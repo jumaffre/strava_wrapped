@@ -235,7 +235,7 @@ def generate():
         year = int(request.form.get('year', datetime.now().year))
         activity_type = request.form.get('activity_type') or 'Run'  # Default to Run
         cluster_id = int(request.form.get('cluster_id', 0)) if request.form.get('find_clusters') else None
-        cluster_radius = float(request.form.get('cluster_radius', 150.0))
+        cluster_radius = float(request.form.get('cluster_radius', 100.0))
         location_city = request.form.get('location_city') or None
         location_radius = float(request.form.get('location_radius', 10.0)) if location_city else None
         
@@ -738,18 +738,6 @@ def generate_cluster_image():
         
         strava = get_strava_client()
         
-        # Triathlon colors - vibrant tones similar to Strava orange
-        TRIATHLON_COLORS = {
-            'Swim': '#1E88E5',           # Vibrant blue for swim
-            'Open Water Swim': '#1E88E5',
-            'Ride': '#FC4C02',           # Strava orange for bike
-            'Gravel Ride': '#FC4C02',
-            'Mountain Bike Ride': '#FC4C02',
-            'E-Bike Ride': '#FC4C02',
-            'Run': '#43A047',            # Vibrant green for run
-            'Trail Run': '#43A047',
-        }
-        
         is_triathlon = (activity_type == 'Triathlon')
         
         # Fetch GPS data and stats for the specific activities
@@ -775,12 +763,11 @@ def generate_cluster_image():
                         'type': activity_type
                     }
                     
-                    # For triathlons, get the actual activity type and assign color
+                    # For triathlons, get the actual activity type
                     if is_triathlon:
                         actual_type = activity_details.get('type', '')
                         activity_data['type'] = actual_type
-                        activity_data['color'] = TRIATHLON_COLORS.get(actual_type, '#FC4C02')
-                        logger.info(f"   🎨 Activity {activity_id}: {actual_type} -> {activity_data['color']}")
+                        logger.info(f"   📍 Activity {activity_id}: {actual_type}")
                     
                     activities_data.append(activity_data)
             except Exception as e:
@@ -817,7 +804,7 @@ def generate_cluster_image():
             'profile_url': athlete.get('profile_medium') or athlete.get('profile')
         }
         
-        # For triathlons, don't use single_color so each leg gets its own color
+        # Use Strava orange for all activities including triathlons
         MapGenerator.create_multi_activity_image(
             activities_data,
             output_file=str(output_path),
@@ -826,7 +813,7 @@ def generate_cluster_image():
             width_px=img_width,
             show_markers=False,
             use_map_background=True,
-            single_color=None if is_triathlon else '#FC4C02',
+            single_color='#FC4C02',
             force_square=True,
             add_border=False,
             stats_data=None,
@@ -886,18 +873,6 @@ def get_cluster_routes():
         activity_type = data.get('activity_type')
         activity_ids = data.get('activity_ids', [])
         
-        # Triathlon colors for the editor - vibrant tones similar to Strava orange
-        TRIATHLON_COLORS = {
-            'Swim': '#1E88E5',           # Vibrant blue
-            'Open Water Swim': '#1E88E5',
-            'Ride': '#FC4C02',           # Strava orange
-            'Gravel Ride': '#FC4C02',
-            'Mountain Bike Ride': '#FC4C02',
-            'E-Bike Ride': '#FC4C02',
-            'Run': '#43A047',            # Vibrant green
-            'Trail Run': '#43A047',
-        }
-        
         is_triathlon = (activity_type == 'Triathlon')
         strava = get_strava_client()
         
@@ -921,11 +896,10 @@ def get_cluster_routes():
                         'coordinates': streams['latlng']['data']
                     }
                     
-                    # For triathlons, get actual type and color
+                    # For triathlons, get actual type (but use consistent Strava orange color)
                     if is_triathlon:
                         actual_type = activity_details.get('type', '')
                         route_data['actual_type'] = actual_type
-                        route_data['color'] = TRIATHLON_COLORS.get(actual_type, '#FC4C02')
                     
                     routes.append(route_data)
             except Exception as e:
@@ -1020,7 +994,7 @@ def export_custom_map():
             width_px=img_width,
             show_markers=False,
             use_map_background=True,
-            single_color=None if is_triathlon else '#FC4C02',
+            single_color='#FC4C02',
             force_square=True,
             add_border=False,
             stats_data=None,
