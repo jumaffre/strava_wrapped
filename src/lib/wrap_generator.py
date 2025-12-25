@@ -37,7 +37,7 @@ class WrapGenerationRequest:
     year: int
     activity_type: Optional[str] = None
     cluster_id: Optional[int] = None  # None = no clustering, int = cluster index to use
-    cluster_radius_km: float = 100.0
+    cluster_radius_km: float = 150.0
     min_cluster_size: Optional[int] = None
     location_city: Optional[str] = None
     location_radius_km: Optional[float] = None

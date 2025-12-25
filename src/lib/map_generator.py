@@ -886,6 +886,36 @@ class ImageProcessor:
         return (lat, lon)
     
     @staticmethod
+    def lat_to_mercator_y(lat):
+        """
+        Convert latitude to Web Mercator Y coordinate.
+        This is the normalized Y position (0-1) in Web Mercator projection.
+        
+        Args:
+            lat: Latitude in degrees
+        
+        Returns:
+            Mercator Y value (higher values = more north, matching lat behavior)
+        """
+        lat_rad = math.radians(lat)
+        # Web Mercator formula - returns value where higher = more north
+        return (1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0
+    
+    @staticmethod
+    def mercator_y_to_lat(merc_y):
+        """
+        Convert Web Mercator Y coordinate back to latitude.
+        
+        Args:
+            merc_y: Mercator Y value (0-1 range, 0=north pole, 1=south pole)
+        
+        Returns:
+            Latitude in degrees
+        """
+        lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * merc_y)))
+        return math.degrees(lat_rad)
+    
+    @staticmethod
     def get_map_bounds(coordinates, padding=0.02):
         """
         Get bounding box for coordinates with padding
@@ -1166,20 +1196,23 @@ class ImageProcessor:
             tile_img_height = map_img.size[1]
             
             # Calculate pixel positions for the requested bounds within the tile grid
+            # Use Mercator Y for latitude to match tile projection
             lon_range = actual_max_lon - actual_min_lon
-            lat_range = actual_max_lat - actual_min_lat
             
-            # Requested bounds
-            req_min_lat = min_lat
-            req_max_lat = max_lat
-            req_min_lon = min_lon
-            req_max_lon = max_lon
+            # Convert latitudes to Mercator Y for proper pixel calculation
+            actual_min_merc_y = ImageProcessor.lat_to_mercator_y(actual_max_lat)  # NW corner (smaller Y value)
+            actual_max_merc_y = ImageProcessor.lat_to_mercator_y(actual_min_lat)  # SE corner (larger Y value)
+            merc_y_range = actual_max_merc_y - actual_min_merc_y
+            
+            # Requested bounds in Mercator Y
+            req_min_merc_y = ImageProcessor.lat_to_mercator_y(max_lat)  # NW of requested
+            req_max_merc_y = ImageProcessor.lat_to_mercator_y(min_lat)  # SE of requested
             
             # Calculate crop box (in pixels)
-            left_pct = (req_min_lon - actual_min_lon) / lon_range if lon_range > 0 else 0
-            right_pct = (req_max_lon - actual_min_lon) / lon_range if lon_range > 0 else 1
-            top_pct = (actual_max_lat - req_max_lat) / lat_range if lat_range > 0 else 0
-            bottom_pct = (actual_max_lat - req_min_lat) / lat_range if lat_range > 0 else 1
+            left_pct = (min_lon - actual_min_lon) / lon_range if lon_range > 0 else 0
+            right_pct = (max_lon - actual_min_lon) / lon_range if lon_range > 0 else 1
+            top_pct = (req_min_merc_y - actual_min_merc_y) / merc_y_range if merc_y_range > 0 else 0
+            bottom_pct = (req_max_merc_y - actual_min_merc_y) / merc_y_range if merc_y_range > 0 else 1
             
             left = max(0, int(left_pct * tile_img_width))
             right = min(tile_img_width, int(right_pct * tile_img_width))
@@ -1191,18 +1224,24 @@ class ImageProcessor:
                 print(f"    Cropping to match editor bounds...")
                 map_img = map_img.crop((left, top, right, bottom))
                 # Update the actual extent to match the crop
-                actual_min_lon = req_min_lon
-                actual_max_lon = req_max_lon
-                actual_min_lat = req_min_lat
-                actual_max_lat = req_max_lat
+                actual_min_lon = min_lon
+                actual_max_lon = max_lon
+                actual_min_lat = min_lat
+                actual_max_lat = max_lat
         
         # Resize to target dimensions with high quality
         print(f"    Resizing from {map_img.size[0]}x{map_img.size[1]} to {width}x{height}...")
         map_img = map_img.resize((width, height), Image.Resampling.LANCZOS)
         
+        # Calculate Mercator Y bounds for proper GPS trace alignment
+        # Note: Mercator Y increases downward (toward south), so min_lat gives max_merc_y
+        merc_y_min = ImageProcessor.lat_to_mercator_y(actual_max_lat)  # North edge
+        merc_y_max = ImageProcessor.lat_to_mercator_y(actual_min_lat)  # South edge
+        
         print(f"    ✓ Map background applied")
         
-        return (map_img, (actual_min_lon, actual_max_lon, actual_min_lat, actual_max_lat))
+        # Return both lat/lon extent AND Mercator Y extent for proper alignment
+        return (map_img, (actual_min_lon, actual_max_lon, actual_min_lat, actual_max_lat, merc_y_min, merc_y_max))
 
 
 class PathSmoother:
@@ -1758,6 +1797,10 @@ class MapGenerator:
         fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
         
         # Handle background (priority: map > photo > solid color)
+        # Track whether we're using Mercator projection for GPS trace
+        use_mercator_y = False
+        merc_y_min = merc_y_max = None
+        
         if use_map_background:
             # Create minimal map background
             print("  Generating minimal map background...")
@@ -1765,17 +1808,20 @@ class MapGenerator:
                 bg_result = ImageProcessor.create_minimal_map_background(
                     self.coordinates, width_px, height_px
                 )
-                bg_img, (tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max) = bg_result
+                bg_img, (tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max, merc_y_min, merc_y_max) = bg_result
                 
-                # Use the actual tile extent for perfect alignment
-                # matplotlib imshow extent format: [left, right, bottom, top] = [lon_min, lon_max, lat_min, lat_max]
+                # Use Mercator Y for the extent to match tile projection
+                # This ensures GPS trace aligns perfectly with map tiles at all zoom levels
+                # extent format: [left, right, bottom, top] = [lon_min, lon_max, merc_y_max, merc_y_min]
+                # Note: merc_y_max is bottom (south), merc_y_min is top (north) because Mercator Y increases southward
                 ax.imshow(bg_img, 
-                         extent=[tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max], 
+                         extent=[tile_lon_min, tile_lon_max, merc_y_max, merc_y_min], 
                          zorder=0, interpolation='bilinear', origin='upper')
                 
-                # Set plot limits to match the tile extent
+                # Set plot limits to match the tile extent in Mercator space
                 ax.set_xlim(tile_lon_min, tile_lon_max)
-                ax.set_ylim(tile_lat_min, tile_lat_max)
+                ax.set_ylim(merc_y_max, merc_y_min)  # Inverted: larger Y value at bottom
+                use_mercator_y = True
                 fig.patch.set_facecolor('white')
                 print("    ✓ Map background applied")
             except Exception as e:
@@ -1804,15 +1850,28 @@ class MapGenerator:
             ax.set_facecolor(background_color)
         
         # Plot the route (on top of background)
-        ax.plot(lons, lats, color=line_color, linewidth=line_width, 
-               solid_capstyle='round', solid_joinstyle='round', antialiased=True, zorder=5)
+        # Convert to Mercator Y if using map background for proper alignment
+        if use_mercator_y:
+            # Convert lat values to Mercator Y for proper alignment with map tiles
+            merc_lats = np.array([ImageProcessor.lat_to_mercator_y(lat) for lat in lats])
+            ax.plot(lons, merc_lats, color=line_color, linewidth=line_width, 
+                   solid_capstyle='round', solid_joinstyle='round', antialiased=True, zorder=5)
+        else:
+            ax.plot(lons, lats, color=line_color, linewidth=line_width, 
+                   solid_capstyle='round', solid_joinstyle='round', antialiased=True, zorder=5)
         
         # Add start and end markers (if enabled)
         if show_markers:
-            ax.plot(lons[0], lats[0], 'o', color='green', markersize=marker_size, 
-                   zorder=10, markeredgecolor='white', markeredgewidth=1)
-            ax.plot(lons[-1], lats[-1], 'o', color='red', markersize=marker_size, 
-                   zorder=10, markeredgecolor='white', markeredgewidth=1)
+            if use_mercator_y:
+                ax.plot(lons[0], merc_lats[0], 'o', color='green', markersize=marker_size, 
+                       zorder=10, markeredgecolor='white', markeredgewidth=1)
+                ax.plot(lons[-1], merc_lats[-1], 'o', color='red', markersize=marker_size, 
+                       zorder=10, markeredgecolor='white', markeredgewidth=1)
+            else:
+                ax.plot(lons[0], lats[0], 'o', color='green', markersize=marker_size, 
+                       zorder=10, markeredgecolor='white', markeredgewidth=1)
+                ax.plot(lons[-1], lats[-1], 'o', color='red', markersize=marker_size, 
+                       zorder=10, markeredgecolor='white', markeredgewidth=1)
         
         # Remove axes and set aspect
         if force_square and use_map_background:
@@ -1960,6 +2019,9 @@ class MapGenerator:
         else:
             height_px = int(figsize[1] * dpi)
         
+        # Track whether we're using Mercator projection for GPS trace
+        use_mercator_y = False
+        
         # Handle background (priority: map > photo > solid color)
         if use_map_background:
             # Create minimal map background using all coordinates or custom bounds
@@ -1983,17 +2045,19 @@ class MapGenerator:
                 bg_result = ImageProcessor.create_minimal_map_background(
                     coords_for_map, width_px, height_px, map_style=map_style, custom_zoom=custom_zoom
                 )
-                bg_img, (tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max) = bg_result
+                bg_img, (tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max, merc_y_min, merc_y_max) = bg_result
                 
-                # Use the actual tile extent for perfect alignment
-                # matplotlib imshow extent format: [left, right, bottom, top] = [lon_min, lon_max, lat_min, lat_max]
+                # Use Mercator Y for the extent to match tile projection
+                # This ensures GPS trace aligns perfectly with map tiles at all zoom levels
+                # extent format: [left, right, bottom, top] = [lon_min, lon_max, merc_y_max, merc_y_min]
                 ax.imshow(bg_img, 
-                         extent=[tile_lon_min, tile_lon_max, tile_lat_min, tile_lat_max], 
+                         extent=[tile_lon_min, tile_lon_max, merc_y_max, merc_y_min], 
                          zorder=0, interpolation='bilinear', origin='upper')
                 
-                # Set plot limits to match the tile extent
+                # Set plot limits to match the tile extent in Mercator space
                 ax.set_xlim(tile_lon_min, tile_lon_max)
-                ax.set_ylim(tile_lat_min, tile_lat_max)
+                ax.set_ylim(merc_y_max, merc_y_min)  # Inverted: larger Y value at bottom
+                use_mercator_y = True
                 fig.patch.set_facecolor('white')
                 print("    ✓ Map background applied")
             except Exception as e:
@@ -2027,20 +2091,37 @@ class MapGenerator:
             coords = activity['coords']
             color = activity['color']
             
-            ax.plot(coords[:, 1], coords[:, 0], color=color, linewidth=line_width,
-                   solid_capstyle='round', solid_joinstyle='round', 
-                   antialiased=True, alpha=0.9)
+            # Convert to Mercator Y if using map background
+            if use_mercator_y:
+                merc_y_coords = np.array([ImageProcessor.lat_to_mercator_y(lat) for lat in coords[:, 0]])
+                ax.plot(coords[:, 1], merc_y_coords, color=color, linewidth=line_width,
+                       solid_capstyle='round', solid_joinstyle='round', 
+                       antialiased=True, alpha=0.9)
+            else:
+                ax.plot(coords[:, 1], coords[:, 0], color=color, linewidth=line_width,
+                       solid_capstyle='round', solid_joinstyle='round', 
+                       antialiased=True, alpha=0.9)
             
             # Add markers if requested
             if show_markers and len(coords) > 0:
-                # Start marker (filled circle)
-                ax.plot(coords[0, 1], coords[0, 0], 'o', color=color, 
-                       markersize=marker_size, zorder=10, markeredgecolor='white', 
-                       markeredgewidth=0.5, alpha=0.8)
-                # End marker (hollow circle)
-                ax.plot(coords[-1, 1], coords[-1, 0], 'o', color=color,
-                       markersize=marker_size, zorder=10, markerfacecolor='white',
-                       markeredgecolor=color, markeredgewidth=1, alpha=0.8)
+                if use_mercator_y:
+                    # Start marker (filled circle)
+                    ax.plot(coords[0, 1], merc_y_coords[0], 'o', color=color, 
+                           markersize=marker_size, zorder=10, markeredgecolor='white', 
+                           markeredgewidth=0.5, alpha=0.8)
+                    # End marker (hollow circle)
+                    ax.plot(coords[-1, 1], merc_y_coords[-1], 'o', color=color,
+                           markersize=marker_size, zorder=10, markerfacecolor='white',
+                           markeredgecolor=color, markeredgewidth=1, alpha=0.8)
+                else:
+                    # Start marker (filled circle)
+                    ax.plot(coords[0, 1], coords[0, 0], 'o', color=color, 
+                           markersize=marker_size, zorder=10, markeredgecolor='white', 
+                           markeredgewidth=0.5, alpha=0.8)
+                    # End marker (hollow circle)
+                    ax.plot(coords[-1, 1], coords[-1, 0], 'o', color=color,
+                           markersize=marker_size, zorder=10, markerfacecolor='white',
+                           markeredgecolor=color, markeredgewidth=1, alpha=0.8)
         
         # Remove axes and set aspect
         if force_square and use_map_background:
