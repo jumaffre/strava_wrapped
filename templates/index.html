@@ -192,7 +192,12 @@
         /* Landing Page */
         .landing {
             text-align: center;
-            padding: 80px 20px;
+            padding: 20px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 180px);
         }
 
         .landing-title {
@@ -204,11 +209,9 @@
         }
 
         .landing-title span {
-            background: linear-gradient(135deg, var(--strava-orange) 0%, #ff7e45 50%, #ffb347 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--strava-orange);
         }
+
 
         .landing-subtitle {
             font-size: 1.25rem;
@@ -220,67 +223,29 @@
         .btn-strava {
             display: inline-flex;
             align-items: center;
-            gap: 12px;
-            padding: 18px 36px;
+            gap: 10px;
+            padding: 14px 24px;
             background: linear-gradient(135deg, var(--strava-orange) 0%, var(--strava-orange-dark) 100%);
             border: none;
-            border-radius: 14px;
+            border-radius: 10px;
             color: white;
             font-family: inherit;
             font-size: 1.1rem;
             font-weight: 600;
             cursor: pointer;
             text-decoration: none;
-            transition: all 0.3s;
-        }
-
-        .btn-strava:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 40px var(--strava-orange-glow);
         }
 
         .btn-strava svg {
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
         }
 
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 24px;
-            margin-top: 80px;
-            text-align: left;
+        .btn-strava:hover {
+            background: linear-gradient(135deg, var(--strava-orange-dark) 0%, var(--strava-orange) 100%);
         }
 
-        .feature {
-            padding: 28px;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-        }
 
-        .feature-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--strava-orange-glow);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 16px;
-            color: var(--strava-orange);
-        }
-
-        .feature-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .feature-desc {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-        }
 
         /* Loading State */
         .loading-state {
@@ -1148,7 +1113,7 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <div class="logo">Strava<span>Wrapped</span> <span class="logo-year"></span></div>
+            <div class="logo"></div>
             <div class="user-section">
                 <div class="theme-toggle" id="themeToggle">
                     <button type="button" data-theme="light" title="Light mode">
@@ -1189,58 +1154,17 @@
         {% if not authenticated %}
         <!-- Landing Page -->
         <div class="landing">
-            <h1 class="landing-title">Your Year in<br><span>Motion</span></h1>
-            <p class="landing-subtitle">Transform your Strava activities into beautiful, shareable visualizations. See
-                your routes, stats, and achievements in a whole new way.</p>
+            <h1 class="landing-title"><span>Strava</span> Wrapped</h1>
+            <p class="landing-subtitle">Your year of activities, visualized</p>
 
             <a href="/login" class="btn-strava">
                 <svg viewBox="0 0 24 24" fill="currentColor">
                     <path
                         d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
                 </svg>
-                Connect with Strava
+                Connect to Strava
             </a>
 
-            <div class="features">
-                <div class="feature">
-                    <div class="feature-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                            <circle cx="12" cy="10" r="3" />
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">Route Clustering</h3>
-                    <p class="feature-desc">Automatically groups your activities by location so you can see your
-                        favorite running spots.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">Beautiful Maps</h3>
-                    <p class="feature-desc">Generate poster-quality images with all your routes layered on a minimal map
-                        background.</p>
-                </div>
-                <div class="feature">
-                    <div class="feature-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <line x1="18" y1="20" x2="18" y2="10" />
-                            <line x1="12" y1="20" x2="12" y2="4" />
-                            <line x1="6" y1="20" x2="6" y2="14" />
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">Year Stats</h3>
-                    <p class="feature-desc">View your total distance, elevation, time, and activities at a glance for
-                        the whole year.</p>
-                </div>
-            </div>
         </div>
 
         {% elif loading %}

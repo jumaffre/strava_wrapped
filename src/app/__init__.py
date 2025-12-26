@@ -366,6 +366,16 @@ def get_image(filename):
     return jsonify({'error': 'Image not found'}), 404
 
 
+@app.route('/samples/<filename>')
+def get_sample_image(filename):
+    """Serve sample images for landing page."""
+    samples_dir = PROJECT_ROOT / 'samples'
+    file_path = samples_dir / filename
+    if file_path.exists() and file_path.is_file():
+        return send_file(file_path, mimetype='image/png')
+    return jsonify({'error': 'Sample not found'}), 404
+
+
 @app.route('/api/stats/stream')
 def stream_stats():
     """
@@ -375,11 +385,13 @@ def stream_stats():
     if not is_authenticated():
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
     
+    # Capture session data before entering generator (generators run outside request context)
+    strava = get_strava_client()
+    athlete = get_current_user()
+    
     def generate():
         try:
             year = datetime.now().year
-            strava = get_strava_client()
-            athlete = get_current_user()
             
             # Send initial message
             yield f"data: {json.dumps({'type': 'start', 'message': 'Connecting to Strava...'})}\n\n"
