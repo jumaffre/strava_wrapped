@@ -529,7 +529,7 @@ class ImageProcessor:
             kudos = stats.get('kudos', 0)
             if kudos > 0:
                 secondary_stats.append((str(kudos), "kudos"))
-
+            
             if secondary_stats:
                 stat_spacing = width // (len(secondary_stats) + 1)
                 for i, (value, label) in enumerate(secondary_stats):

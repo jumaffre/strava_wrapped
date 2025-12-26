@@ -738,6 +738,43 @@
             letter-spacing: 0.05em;
         }
 
+        /* Explore All Section */
+        .explore-all-section {
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .explore-all-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, var(--strava-orange) 0%, var(--strava-orange-dark) 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-family: inherit;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 16px var(--strava-orange-glow);
+        }
+
+        .explore-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px var(--strava-orange-glow);
+        }
+
+        .explore-all-btn:active {
+            transform: translateY(0);
+        }
+
+        .explore-all-btn svg {
+            flex-shrink: 0;
+        }
+
         /* Activity Types */
         .activity-section {
             margin-bottom: 32px;
@@ -1431,6 +1468,9 @@
                     throw new Error(data.error || 'Failed to load stats');
                 }
 
+                // Store data for the "Explore All" button
+                allActivitiesData = data;
+
                 renderDashboard(data);
             } catch (error) {
                 console.error('Error loading stats:', error);
@@ -1537,6 +1577,16 @@
                             <span class="ranking-count">${activity.count}</span>
                         </a>
                     `).join('')}
+                </div>
+
+                <div class="explore-all-section">
+                    <button class="explore-all-btn" onclick="openAllActivitiesMap()" id="exploreAllBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                        Explore All Activities on Map
+                    </button>
                 </div>
 
                 <div class="activity-section">
@@ -1649,6 +1699,39 @@
         let currentImageUrl = '';
         let currentTitle = '';
         let currentClusterInfo = null;  // Store cluster info for customization
+        let allActivitiesData = null;  // Store all activities data for global map view
+
+        function openAllActivitiesMap() {
+            if (!allActivitiesData || !allActivitiesData.top_activities) {
+                showToast('No activities data available');
+                return;
+            }
+
+            // Collect all activity IDs from all clusters across all activity types
+            const allActivityIds = new Set();
+            allActivitiesData.top_activities.forEach(activity => {
+                if (activity.clusters) {
+                    activity.clusters.forEach(cluster => {
+                        if (cluster.activity_ids) {
+                            cluster.activity_ids.forEach(id => allActivityIds.add(id));
+                        }
+                    });
+                }
+            });
+
+            if (allActivityIds.size === 0) {
+                showToast('No GPS activities found');
+                return;
+            }
+
+            // Navigate to customize page with all activities
+            const params = new URLSearchParams({
+                activity_type: 'All',
+                cluster_name: `${allActivitiesData.year} Activities`,
+                activity_ids: Array.from(allActivityIds).join(',')
+            });
+            window.location.href = '/customize?' + params.toString();
+        }
 
         function showModal(title, imageUrl, clusterInfo = null) {
             currentTitle = title;
