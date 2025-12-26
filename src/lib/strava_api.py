@@ -6,8 +6,86 @@ This module provides a wrapper for interacting with the Strava API.
 """
 
 import sys
+import json
+import hashlib
 import requests
+from pathlib import Path
 from datetime import datetime, timezone
+from typing import Optional, Dict, Any, List
+
+
+class StravaCache:
+    """Disk-based cache for Strava API responses"""
+    
+    def __init__(self, cache_dir: Path, athlete_id: Optional[int] = None):
+        self.cache_dir = cache_dir
+        self.athlete_id = athlete_id
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    def _get_cache_path(self, cache_type: str, key: str = "") -> Path:
+        """Get the path to a cache file"""
+        if self.athlete_id:
+            filename = f"{self.athlete_id}_{cache_type}"
+        else:
+            filename = cache_type
+        if key:
+            # Hash the key for safe filenames
+            key_hash = hashlib.md5(str(key).encode()).hexdigest()[:12]
+            filename = f"{filename}_{key_hash}"
+        return self.cache_dir / f"{filename}.json"
+    
+    def get(self, cache_type: str, key: str = "") -> Optional[Any]:
+        """Get data from cache"""
+        cache_path = self._get_cache_path(cache_type, key)
+        if cache_path.exists():
+            try:
+                with open(cache_path, 'r') as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, IOError):
+                return None
+        return None
+    
+    def set(self, cache_type: str, data: Any, key: str = "") -> None:
+        """Save data to cache"""
+        cache_path = self._get_cache_path(cache_type, key)
+        try:
+            with open(cache_path, 'w') as f:
+                json.dump(data, f)
+        except IOError:
+            pass  # Silently fail on cache write errors
+    
+    def clear(self) -> int:
+        """Clear all cache files for this athlete. Returns number of files deleted."""
+        count = 0
+        if self.athlete_id:
+            # Only clear files for this athlete
+            pattern = f"{self.athlete_id}_*"
+            for cache_file in self.cache_dir.glob(pattern):
+                try:
+                    cache_file.unlink()
+                    count += 1
+                except IOError:
+                    pass
+        else:
+            # Clear all cache files
+            for cache_file in self.cache_dir.glob("*.json"):
+                try:
+                    cache_file.unlink()
+                    count += 1
+                except IOError:
+                    pass
+        return count
+    
+    def clear_all(self) -> int:
+        """Clear ALL cache files regardless of athlete. Returns number of files deleted."""
+        count = 0
+        for cache_file in self.cache_dir.glob("*.json"):
+            try:
+                cache_file.unlink()
+                count += 1
+            except IOError:
+                pass
+        return count
 
 
 class StravaAPI:
@@ -16,12 +94,20 @@ class StravaAPI:
     BASE_URL = "https://www.strava.com/api/v3"
     TOKEN_URL = "https://www.strava.com/oauth/token"
     
-    def __init__(self, client_id, client_secret, refresh_token, debug=False):
+    def __init__(self, client_id, client_secret, refresh_token, debug=False, 
+                 cache_dir: Optional[Path] = None, athlete_id: Optional[int] = None):
         self.client_id = client_id
         self.client_secret = client_secret
         self.refresh_token = refresh_token
         self.access_token = None
         self.debug = debug
+        self.athlete_id = athlete_id
+        
+        # Initialize cache
+        if cache_dir:
+            self.cache = StravaCache(cache_dir, athlete_id)
+        else:
+            self.cache = None
         
     def get_access_token(self):
         """Exchange refresh token for access token"""
@@ -84,7 +170,7 @@ class StravaAPI:
                 print(f"Response: {e.response.text}")
             sys.exit(1)
     
-    def get_activities(self, per_page=30, activity_type=None, after=None, before=None):
+    def get_activities(self, per_page=30, activity_type=None, after=None, before=None, use_cache=True):
         """
         Fetch activities from Strava
         
@@ -93,10 +179,25 @@ class StravaAPI:
             activity_type: Filter by activity type (e.g., 'Run', 'Ride', 'Swim')
             after: Fetch activities after this timestamp (epoch seconds)
             before: Fetch activities before this timestamp (epoch seconds)
+            use_cache: Whether to use cached data if available
         
         Returns:
             List of activities
         """
+        # Create cache key from parameters
+        cache_key = f"{after}_{before}_{activity_type}"
+        
+        # Check cache first
+        if use_cache and self.cache:
+            cached = self.cache.get("activities", cache_key)
+            if cached is not None:
+                if self.debug:
+                    print(f"[DEBUG] ✓ Using cached activities ({len(cached)} activities)")
+                # Apply activity type filter if specified
+                if activity_type:
+                    cached = [a for a in cached if a.get('type', '').lower() == activity_type.lower()]
+                return cached
+        
         if not self.access_token:
             self.get_access_token()
         
@@ -164,6 +265,12 @@ class StravaAPI:
                     print(f"Response: {e.response.text}")
                 sys.exit(1)
         
+        # Save to cache (before type filtering so we cache the full set)
+        if self.cache:
+            self.cache.set("activities", all_activities, cache_key)
+            if self.debug:
+                print(f"[DEBUG] ✓ Cached {len(all_activities)} activities")
+        
         # Filter by activity type if specified
         if activity_type:
             all_activities = [a for a in all_activities if a.get('type', '').lower() == activity_type.lower()]
@@ -194,16 +301,27 @@ class StravaAPI:
         
         return activities[0]
     
-    def get_activity_by_id(self, activity_id):
+    def get_activity_by_id(self, activity_id, use_cache=True):
         """
         Fetch a specific activity by ID
         
         Args:
             activity_id: The Strava activity ID
+            use_cache: Whether to use cached data if available
         
         Returns:
             Activity dict
         """
+        cache_key = str(activity_id)
+        
+        # Check cache first
+        if use_cache and self.cache:
+            cached = self.cache.get("activity_detail", cache_key)
+            if cached is not None:
+                if self.debug:
+                    print(f"[DEBUG] ✓ Using cached activity detail for {activity_id}")
+                return cached
+        
         if not self.access_token:
             self.get_access_token()
         
@@ -216,15 +334,31 @@ class StravaAPI:
         try:
             response = requests.get(url, headers=headers)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            
+            # Cache the result
+            if self.cache:
+                self.cache.set("activity_detail", data, cache_key)
+            
+            return data
         except requests.exceptions.RequestException as e:
             print(f"❌ Error fetching activity {activity_id}: {e}")
             if hasattr(e, 'response') and e.response is not None:
                 print(f"Response: {e.response.text}")
             sys.exit(1)
     
-    def get_activity_streams(self, activity_id):
+    def get_activity_streams(self, activity_id, use_cache=True):
         """Fetch GPS coordinates (latlng stream) for a specific activity"""
+        cache_key = str(activity_id)
+        
+        # Check cache first
+        if use_cache and self.cache:
+            cached = self.cache.get("activity_streams", cache_key)
+            if cached is not None:
+                if self.debug:
+                    print(f"[DEBUG] ✓ Using cached streams for activity {activity_id}")
+                return cached
+        
         if not self.access_token:
             self.get_access_token()
         
@@ -238,10 +372,19 @@ class StravaAPI:
                 params={'keys': 'latlng', 'key_by_type': True}
             )
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            
+            # Cache the result
+            if self.cache:
+                self.cache.set("activity_streams", data, cache_key)
+            
+            return data
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 # Activity doesn't have GPS streams (indoor activity, manual entry, etc.)
+                # Cache empty result to avoid repeated API calls
+                if self.cache:
+                    self.cache.set("activity_streams", {}, cache_key)
                 return {}
             else:
                 # Other HTTP errors - print and exit for single activity mode
@@ -347,16 +490,27 @@ class StravaAPI:
                 print(f"[DEBUG] Error fetching athlete profile: {e}")
             return None
     
-    def get_athlete_stats(self, athlete_id):
+    def get_athlete_stats(self, athlete_id, use_cache=True):
         """
         Fetch aggregated stats for an athlete (fast - single API call)
         
         Args:
             athlete_id: The athlete's Strava ID
+            use_cache: Whether to use cached data if available
         
         Returns:
             Dict with ytd_run_totals, ytd_ride_totals, ytd_swim_totals, etc.
         """
+        cache_key = str(athlete_id)
+        
+        # Check cache first
+        if use_cache and self.cache:
+            cached = self.cache.get("athlete_stats", cache_key)
+            if cached is not None:
+                if self.debug:
+                    print(f"[DEBUG] ✓ Using cached athlete stats")
+                return cached
+        
         if not self.access_token:
             self.get_access_token()
         
@@ -366,9 +520,29 @@ class StravaAPI:
         try:
             response = requests.get(url, headers=headers)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            
+            # Cache the result
+            if self.cache:
+                self.cache.set("athlete_stats", data, cache_key)
+            
+            return data
         except requests.exceptions.RequestException as e:
             if self.debug:
                 print(f"[DEBUG] Error fetching athlete stats: {e}")
             return None
+    
+    def clear_cache(self) -> int:
+        """
+        Clear all cached data for this user.
+        
+        Returns:
+            Number of cache files deleted
+        """
+        if self.cache:
+            count = self.cache.clear()
+            if self.debug:
+                print(f"[DEBUG] ✓ Cleared {count} cache files")
+            return count
+        return 0
 

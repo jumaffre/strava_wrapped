@@ -25,3 +25,6 @@ static/generated/
 
 # Tile cache
 .tile_cache/
+
+# API response cache
+data/cache/

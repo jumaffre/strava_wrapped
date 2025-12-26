@@ -50,6 +50,10 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-pro
 OUTPUT_DIR = STATIC_DIR / 'generated'
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Create cache directory for API responses
+CACHE_DIR = PROJECT_ROOT / 'data' / 'cache'
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
 # OAuth Configuration
 STRAVA_CLIENT_ID = os.getenv('STRAVA_CLIENT_ID', '').strip()
 STRAVA_CLIENT_SECRET = os.getenv('STRAVA_CLIENT_SECRET', '').strip()
@@ -112,11 +116,17 @@ def get_strava_client():
         if not refresh_access_token():
             raise ValueError("Failed to refresh access token. Please reconnect with Strava.")
     
+    # Get athlete ID for cache scoping
+    athlete = session.get('athlete', {})
+    athlete_id = athlete.get('id')
+    
     return StravaAPI(
         STRAVA_CLIENT_ID,
         STRAVA_CLIENT_SECRET,
         session['refresh_token'],
-        debug=False
+        debug=False,
+        cache_dir=CACHE_DIR,
+        athlete_id=athlete_id
     )
 
 
@@ -428,9 +438,10 @@ def get_user_stats():
     try:
         year = datetime.now().year
         cache_key = f'stats_{year}'
+        is_refresh = request.args.get('refresh')
         
         # Check if we have cached stats (expires when session ends or user logs out)
-        if cache_key in session and not request.args.get('refresh'):
+        if cache_key in session and not is_refresh:
             logger.info("📊 Returning cached stats")
             return jsonify(session[cache_key])
         
@@ -440,6 +451,11 @@ def get_user_stats():
         
         strava = get_strava_client()
         athlete = get_current_user()
+        
+        # If refresh requested, clear the disk cache first
+        if is_refresh:
+            cache_cleared = strava.clear_cache()
+            logger.info(f"🗑️ Cleared {cache_cleared} cache files")
         
         logger.info(f"👤 User: {athlete.get('firstname', 'Unknown')} {athlete.get('lastname', '')}")
         logger.info(f"📅 Year: {year}")
