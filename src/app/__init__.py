@@ -235,7 +235,7 @@ def generate():
         year = int(request.form.get('year', datetime.now().year))
         activity_type = request.form.get('activity_type') or 'Run'  # Default to Run
         cluster_id = int(request.form.get('cluster_id', 0)) if request.form.get('find_clusters') else None
-        cluster_radius = float(request.form.get('cluster_radius', 100.0))
+        cluster_radius = float(request.form.get('cluster_radius', 50.0))
         location_city = request.form.get('location_city') or None
         location_radius = float(request.form.get('location_radius', 10.0)) if location_city else None
         
@@ -537,17 +537,17 @@ def get_user_stats():
             # Find clusters (min_activities=1 to include all)
             clusters = []
             if activities_with_coords:
-                # Find geographic clusters with 150km radius
+                # Find geographic clusters with 50km radius
                 raw_clusters = ActivityClusterer.find_areas_of_interest(
                     activities_with_coords,
-                    radius_km=150.0,
+                    radius_km=50.0,
                     min_activities=1
                 )
                 
                 # Format clusters for frontend (no limit)
                 for i, cluster in enumerate(raw_clusters):
                     center_lat, center_lon = cluster['center']
-                    # Try to get city-level location name (since clusters are 150km)
+                    # Try to get city-level location name (since clusters are 50km)
                     location_name = LocationUtils.reverse_geocode(center_lat, center_lon, level='city')
                     clusters.append({
                         'id': i,
